@@ -88,7 +88,7 @@ function App() {
         {/* RIGHT COLUMN: title + level info + board + info card */}
         <section className="content">
           {/* NEW: compact game title centered above the board */}
-          <h1 className="game-title">Chess Worlds</h1>
+          <h1 className="game-title">CHESS WORLDS</h1>
 
           {/* Level title/subtitle just above the board too */}
           <h2 className="level-title">{selectedLevel.title}</h2>
