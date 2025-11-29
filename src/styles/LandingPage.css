@@ -1,0 +1,272 @@
+/* src/styles/LandingPage.css */
+
+/* Layout */
+
+.cw-root {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 16px 24px;
+  overflow: hidden;
+}
+
+/* freeze interactions during portal */
+.cw-root--portal {
+  pointer-events: none;
+}
+
+.cw-overlay {
+  pointer-events: none;
+  position: fixed;
+  inset: -20%;
+  background:
+    radial-gradient(circle at 10% 0, rgba(59, 130, 246, 0.06), transparent 55%),
+    radial-gradient(circle at 90% 20%, rgba(34, 197, 94, 0.12), transparent 65%),
+    radial-gradient(circle at 50% 120%, rgba(56, 189, 248, 0.15), transparent 70%);
+  opacity: 0.9;
+  mix-blend-mode: screen;
+  z-index: -1;
+}
+
+/* HERO TITLE */
+
+.cw-hero {
+  margin-top: 32px;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.cw-logo {
+  margin: 0;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.35em;
+  font-size: clamp(32px, 4.3vw, 40px);
+  text-transform: uppercase;
+  font-weight: 700;
+  color: #f9fafb;
+}
+
+.cw-logo-space {
+  width: 0.9em;
+}
+
+/* each letter is its own "tile button" */
+.cw-logo-letter {
+  all: unset;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.1em;
+  height: 1.1em;
+  border-radius: 999px;
+  cursor: default;
+}
+
+/* make the O clickable */
+.cw-logo-letter--portal {
+  cursor: pointer;
+}
+
+/* zoom animation only on the O */
+.cw-root--portal .cw-logo-letter--portal {
+  animation: cw-portal-zoom 0.7s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+}
+
+/* global glow during portal */
+.cw-root--portal::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at center, rgba(34, 197, 94, 0.18), transparent 58%),
+    radial-gradient(circle at center, rgba(15, 23, 42, 0.9), rgba(0, 0, 0, 0.98));
+  mix-blend-mode: screen;
+  pointer-events: none;
+  animation: cw-portal-glow 0.7s forwards;
+  z-index: 10;
+}
+
+/* MAIN FORM CARD */
+
+.cw-main {
+  margin-top: 64px;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.cw-form-card {
+  width: 100%;
+  max-width: 460px;
+  background: var(--cw-card-bg);
+  border-radius: var(--cw-radius);
+  border: 1px solid var(--cw-border);
+  box-shadow: var(--cw-shadow);
+  padding: 24px 24px 20px;
+  backdrop-filter: blur(24px);
+  transition: opacity 0.3s ease-out, transform 0.3s ease-out, filter 0.3s ease-out;
+}
+
+/* fade the card when portal triggers */
+.cw-root--portal .cw-form-card {
+  animation: cw-card-fade 0.7s forwards;
+}
+
+.cw-form {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.cw-input {
+  flex: 1;
+  padding: 10px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--cw-border);
+  background: rgba(15, 23, 42, 0.9);
+  color: var(--cw-text);
+  font-size: 15px;
+  outline: none;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  caret-color: var(--cw-accent);
+  transition: border-color var(--cw-transition-fast),
+    box-shadow var(--cw-transition-fast),
+    background var(--cw-transition-fast);
+}
+
+.cw-input:focus {
+  border-color: var(--cw-accent);
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.25);
+  background: rgba(15, 23, 42, 0.98);
+}
+
+.cw-button-fake {
+  padding: 9px 18px;
+  border-radius: 999px;
+  border: 1px solid var(--cw-border);
+  background: rgba(15, 23, 42, 0.95);
+  color: var(--cw-muted);
+  font-size: 13px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background var(--cw-transition-fast),
+    border-color var(--cw-transition-fast),
+    color var(--cw-transition-fast),
+    transform 80ms ease-out;
+}
+
+.cw-button-fake:hover {
+  background: rgba(15, 23, 42, 1);
+  border-color: rgba(148, 163, 184, 0.7);
+  color: #e5e7eb;
+}
+
+.cw-button-fake:active {
+  transform: translateY(1px);
+}
+
+.cw-error {
+  min-height: 1.2em;
+  margin: 8px 4px 0;
+  font-size: 13px;
+  color: var(--cw-error);
+  opacity: 0;
+  transition: opacity var(--cw-transition-fast);
+}
+
+.cw-error--visible {
+  opacity: 1;
+}
+
+/* FOOTER */
+
+.cw-footer {
+  margin-top: auto;
+  padding-top: 32px;
+  font-size: 12px;
+  color: var(--cw-muted);
+  text-align: center;
+  opacity: 0.8;
+}
+
+/* GAME PAGE (only used by the placeholder in the original version;
+   not needed now, but kept in case you reuse) */
+
+.cw-game-root {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at top, #0f172a 0, #020617 55%, #000 100%);
+  color: var(--cw-text);
+  padding: 32px 16px;
+}
+
+.cw-game-inner {
+  max-width: 720px;
+  width: 100%;
+  background: var(--cw-card-bg);
+  border-radius: var(--cw-radius);
+  border: 1px solid var(--cw-border);
+  padding: 32px 28px;
+  box-shadow: var(--cw-shadow);
+}
+
+.cw-game-inner h2 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 24px;
+}
+
+.cw-game-inner p {
+  margin-top: 6px;
+  margin-bottom: 6px;
+  font-size: 15px;
+  color: #cbd5f5;
+}
+
+/* Animations */
+
+@keyframes cw-portal-zoom {
+  0% {
+    transform: scale(1);
+    box-shadow: none;
+  }
+  40% {
+    transform: scale(4);
+    box-shadow: 0 0 80px rgba(34, 197, 94, 0.7);
+  }
+  100% {
+    transform: scale(18);
+    box-shadow: 0 0 0 rgba(34, 197, 94, 0);
+  }
+}
+
+@keyframes cw-card-fade {
+  0% {
+    opacity: 1;
+    filter: none;
+  }
+  100% {
+    opacity: 0;
+    filter: blur(8px);
+  }
+}
+
+@keyframes cw-portal-glow {
+  0% {
+    opacity: 0;
+  }
+  40% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+  }
+}

@@ -1,6 +1,6 @@
-/* src/data/pgns.js */
-/* === Chess Worlds game layout (GameShell) === */
+/* src/styles/GamePage.css */
 
+/* Root container for the in-game UI */
 .app-root {
   display: flex;
   flex-direction: column;
@@ -115,8 +115,8 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-/* Buttons inside game UI */
-button {
+/* Buttons INSIDE THE GAME ONLY */
+.app-root button {
   border-radius: 6px;
   border: none;
   padding: 0.5rem 1.1rem;
@@ -126,20 +126,21 @@ button {
   color: #fff;
 }
 
-button:hover {
+.app-root button:hover {
   background: #4d5370;
 }
 
 /* primary button variant (for wrong move dialog) */
-button.primary {
+.app-root button.primary {
   background: #4f46e5;
 }
 
-button.primary:hover {
+.app-root button.primary:hover {
   background: #6366f1;
 }
 
-/* Wrong move dialog */
+/* Wrong-move dialog */
+
 .wrong-move-backdrop {
   position: absolute;
   inset: 0;
