@@ -3,16 +3,52 @@ import React, { useEffect, useRef, useState } from "react";
 import { Chess } from "chess.js";
 import { Chessboard } from "react-chessboard";
 
-// --- Level runner: enforces the historical game sequence ---
+// --- board geometry + helpers ---
+const BOARD_SIZE = 520;
+const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"];
+const RANKS = ["1", "2", "3", "4", "5", "6", "7", "8"];
+
+// === ICY HIGHLIGHT + OVERLAY THEME ===========================
+
+// Base style for big overlay characters (files, ranks, move text)
+const OVERLAY_BASE = {
+  position: "absolute",
+  transform: "translate(-50%, -50%)",
+  pointerEvents: "none",
+  fontFamily:
+    "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+  fontWeight: 900,
+  textTransform: "uppercase",
+};
+
+// Icy teal origin square (where you start the move)
+const ORIGIN_HIGHLIGHT = {
+  background:
+    "radial-gradient(circle, rgba(56,189,248,0.85) 0%, rgba(37,99,235,0.45) 55%, transparent 70%)",
+  boxShadow: "inset 0 0 0 3px rgba(191,219,254,1)",
+};
+
+// Slightly softer destination squares
+const DEST_HIGHLIGHT = {
+  background:
+    "radial-gradient(circle, rgba(59,130,246,0.65) 0%, rgba(37,99,235,0.35) 55%, transparent 70%)",
+  boxShadow: "inset 0 0 0 2px rgba(191,219,254,0.9)",
+};
+
+// Icy file/rank sweep for Show Me
+const FLASH_HIGHLIGHT = {
+  background: "rgba(191,219,254,0.28)", // pale icy blue
+  boxShadow: "inset 0 0 0 3px rgba(129,199,255,0.95)",
+};
+
+// === Level runner (historical move enforcement) ==============
 class LevelRunner {
   constructor(level) {
     this.level = level;
     this.playerColor = level.playerColor === "white" ? "w" : "b";
 
-    // Always initialise so we never hit "undefined"
     this.fullMoves = [];
 
-    // Load the whole historical game into a temp instance
     const temp = new Chess();
     try {
       const loaded = temp.loadPgn(level.pgn, { sloppy: true });
@@ -27,19 +63,14 @@ class LevelRunner {
 
     console.log("Full moves for level", level.id, this.fullMoves);
 
-    // This is the board we actually play on
     this.chess = new Chess();
-    this.plyIndex = 0; // which move in fullMoves we’re at
+    this.plyIndex = 0;
     this.failed = false;
 
-    // If you're Black, auto-play White's early moves
     this._advanceToPlayerTurnStart();
   }
 
-  // Advance internal board until the next move to be played
-  // in the historical game is by the player's color.
   _advanceToPlayerTurnStart() {
-    // No moves loaded → nothing to do
     if (!this.fullMoves || this.fullMoves.length === 0) {
       console.warn(
         "No moves loaded for level; starting from initial position."
@@ -49,7 +80,6 @@ class LevelRunner {
       return;
     }
 
-    // Start from initial position
     this.chess.reset();
     this.plyIndex = 0;
 
@@ -77,11 +107,9 @@ class LevelRunner {
 
   reset() {
     this.failed = false;
-    // Re-advance to the starting point for the player's first move
     this._advanceToPlayerTurnStart();
   }
 
-  // How many moves the *player* has in this game (used for time limit)
   playerMoveCount() {
     if (!this.fullMoves) return 0;
     return this.fullMoves.filter((m) => m.color === this.playerColor).length;
@@ -92,7 +120,6 @@ class LevelRunner {
     return this.fullMoves[this.plyIndex];
   }
 
-  // Try to apply the player's move. Returns info about what happened.
   handlePlayerMove(from, to) {
     console.log("handlePlayerMove called with", from, "->", to);
 
@@ -100,29 +127,24 @@ class LevelRunner {
     console.log("Expected move at ply", this.plyIndex, ":", expected);
 
     if (!expected) {
-      // Game already finished or PGN missing
       return { ok: false, completed: true };
     }
 
-    // It should be the player's turn in the historical game
     if (expected.color !== this.playerColor) {
       console.warn("It is not the player's turn in the historical sequence.");
       this.failed = true;
       return { ok: false, failed: true, expected };
     }
 
-    // Work on a temporary board so we don't mutate the real one on wrong moves
     const tempBoard = new Chess(this.chess.fen());
     const move = tempBoard.move({ from, to, promotion: "q" });
     console.log("chess.js move result:", move);
 
     if (!move) {
-      // Illegal move by chess rules
       this.failed = true;
       return { ok: false, failed: true, expected };
     }
 
-    // Check if it matches the historical move exactly
     const correct =
       move.from === expected.from &&
       move.to === expected.to &&
@@ -135,10 +157,8 @@ class LevelRunner {
       return { ok: false, failed: true, expected };
     }
 
-    // Correct move → advance to next ply
     this.plyIndex++;
 
-    // Auto-play the opponent's reply, if any
     const next = this.fullMoves[this.plyIndex];
     if (next && next.color !== this.playerColor) {
       console.log("Auto-playing opponent move:", next);
@@ -150,7 +170,6 @@ class LevelRunner {
       this.plyIndex++;
     }
 
-    // Commit the temp board as the real one
     this.chess = tempBoard;
 
     const completed = this.plyIndex >= this.fullMoves.length;
@@ -161,45 +180,72 @@ class LevelRunner {
   }
 }
 
-// --- React component for one level ---
 export default function ChessLevel({ level }) {
   const [fen, setFen] = useState(new Chess().fen());
   const [elapsed, setElapsed] = useState(0);
   const [runStartTime, setRunStartTime] = useState(null);
   const [timeLimit, setTimeLimit] = useState(0);
 
-  // For wrong-move dialog & hint
   const [wrongDialog, setWrongDialog] = useState({
     visible: false,
     expectedMove: null,
   });
   const [hintSquares, setHintSquares] = useState({});
 
+  const [selection, setSelection] = useState({
+    from: null,
+    legalTargets: [],
+  });
+  const [selectionSquares, setSelectionSquares] = useState({});
+
+  const [dragSquares, setDragSquares] = useState({});
+
+  const [guideSquares, setGuideSquares] = useState({});
+  const [fileOverlay, setFileOverlay] = useState(null); // { text, colIndex, rankIndex }
+  const [rankOverlay, setRankOverlay] = useState(null); // { text, colIndex, rankIndex }
+  const [moveOverlay, setMoveOverlay] = useState(null); // { text, colIndex, rankIndex }
+  const [finalMessage, setFinalMessage] = useState(null);
+
   const levelRunnerRef = useRef(null);
 
-  // Create / reset the level runner whenever the level changes
+  const clearDrag = () => setDragSquares({});
+
+  const clearSelection = () => {
+    setSelection({ from: null, legalTargets: [] });
+    setSelectionSquares({});
+    clearDrag();
+  };
+
+  const clearGuide = () => {
+    setGuideSquares({});
+    setFileOverlay(null);
+    setRankOverlay(null);
+    setMoveOverlay(null);
+    setFinalMessage(null);
+  };
+
+  // Init / reset when level changes
   useEffect(() => {
     if (!level) return;
 
     const runner = new LevelRunner(level);
     levelRunnerRef.current = runner;
 
-    // Start position (after any auto-played moves for Black)
     setFen(runner.chess.fen());
 
-    // Time limit = moves by player * seconds per move
     const movesForPlayer = runner.playerMoveCount();
     const perMove = level.timePerMoveSeconds || 10;
     setTimeLimit(movesForPlayer * perMove);
 
-    // Reset timer and dialog/hints
     setElapsed(0);
     setRunStartTime(null);
     setWrongDialog({ visible: false, expectedMove: null });
     setHintSquares({});
+    clearSelection();
+    clearGuide();
   }, [level]);
 
-  // Timer effect – runs while runStartTime is set
+  // Timer
   useEffect(() => {
     if (runStartTime === null) return;
 
@@ -219,63 +265,23 @@ export default function ChessLevel({ level }) {
     setRunStartTime(null);
     setWrongDialog({ visible: false, expectedMove: null });
     setHintSquares({});
+    clearSelection();
+    clearGuide();
   };
 
   const handleTryAgain = () => {
     restartLevel();
   };
 
-  const handleShowMe = () => {
+  // Core move application used by click + drag
+  const attemptMove = (sourceSquare, targetSquare) => {
     const runner = levelRunnerRef.current;
-    const expected = wrongDialog.expectedMove;
-    if (!runner || !expected) {
-      restartLevel();
-      return;
-    }
+    if (!runner) return { ok: false };
 
-    // Close dialog
-    setWrongDialog({ visible: false, expectedMove: null });
-
-    // Build a very obvious highlight style
-    const highlightStyle = {
-      background:
-        "radial-gradient(circle, rgba(34,197,94,0.9) 0%, rgba(22,163,74,0.5) 60%, transparent 70%)",
-      boxShadow: "inset 0 0 0 3px rgba(34,197,94,1)",
-    };
-
-    // Highlight from + to
-    setHintSquares({
-      [expected.from]: highlightStyle,
-      [expected.to]: highlightStyle,
-    });
-
-    // Show the correct move on the board
-    const temp = new Chess(runner.chess.fen());
-    temp.move({
-      from: expected.from,
-      to: expected.to,
-      promotion: expected.promotion || "q",
-    });
-
-    setFen(temp.fen());
-
-    // After a short pause, restart the level (restartLevel clears highlights)
-    setTimeout(() => {
-      restartLevel();
-    }, 1500);
-  };
-
-  // Drop handler
-  const handlePieceDrop = (sourceSquare, targetSquare) => {
-    const runner = levelRunnerRef.current;
-    if (!runner) return false;
-
-    // If the wrong-move dialog is open, ignore further moves
     if (wrongDialog.visible) {
-      return false;
+      return { ok: false };
     }
 
-    // Start the timer on the first correct move
     if (runStartTime === null) {
       setRunStartTime(Date.now());
     }
@@ -283,18 +289,19 @@ export default function ChessLevel({ level }) {
     const result = runner.handlePlayerMove(sourceSquare, targetSquare);
 
     if (!result.ok) {
-      // Wrong / illegal move or PGN already finished
-      setRunStartTime(null); // stop timer
+      setRunStartTime(null);
       setWrongDialog({
         visible: true,
         expectedMove: result.expected || null,
       });
-      // Tell chessboard to snap the piece back
-      return false;
+      clearSelection();
+      return { ok: false };
     }
 
-    // Correct move → update board
     setFen(result.fen);
+    clearSelection();
+    setHintSquares({});
+    clearGuide();
 
     if (result.completed) {
       const totalSeconds = (Date.now() - runStartTime) / 1000;
@@ -310,32 +317,308 @@ export default function ChessLevel({ level }) {
         )}s\nScore: ${score}`
       );
 
-      // Stop timer; player can hit Restart to try again
       setRunStartTime(null);
     }
 
-    // IMPORTANT: returning true keeps the piece on the new square
-    return true;
+    return { ok: true };
+  };
+
+  const handlePieceDrop = (sourceSquare, targetSquare) => {
+    const { ok } = attemptMove(sourceSquare, targetSquare);
+    clearDrag();
+    return ok;
+  };
+
+  // Click-select / click-move
+  const handleSquareClick = ({ square }) => {
+    const runner = levelRunnerRef.current;
+    if (!runner || wrongDialog.visible) return;
+
+    const chess = runner.chess;
+    const playerColor = runner.playerColor;
+
+    if (selection.from) {
+      if (square === selection.from) {
+        clearSelection();
+        return;
+      }
+
+      if (selection.legalTargets.includes(square)) {
+        attemptMove(selection.from, square);
+        return;
+      }
+
+      clearSelection();
+    }
+
+    const piece = chess.get(square);
+    if (!piece || piece.color !== playerColor) {
+      clearSelection();
+      return;
+    }
+
+    const legalMoves = chess
+      .moves({ square, verbose: true })
+      .filter((m) => m.color === playerColor);
+
+    const targets = legalMoves.map((m) => m.to);
+
+    const sqStyles = {
+      [square]: ORIGIN_HIGHLIGHT,
+    };
+    targets.forEach((t) => {
+      sqStyles[t] = DEST_HIGHLIGHT;
+    });
+
+    setSelection({ from: square, legalTargets: targets });
+    setSelectionSquares(sqStyles);
+  };
+
+  // Drag highlights: origin + all legal targets
+  const handlePieceDragBegin = ({ sourceSquare }) => {
+    const runner = levelRunnerRef.current;
+    if (!runner || wrongDialog.visible) return;
+
+    const chess = runner.chess;
+    const playerColor = runner.playerColor;
+    const piece = chess.get(sourceSquare);
+
+    if (!piece || piece.color !== playerColor) {
+      clearDrag();
+      return;
+    }
+
+    const legalMoves = chess
+      .moves({ square: sourceSquare, verbose: true })
+      .filter((m) => m.color === playerColor);
+
+    const styles = {
+      [sourceSquare]: ORIGIN_HIGHLIGHT,
+    };
+    legalMoves.forEach((m) => {
+      styles[m.to] = DEST_HIGHLIGHT;
+    });
+
+    setDragSquares(styles);
+  };
+
+  const handlePieceDragEnd = () => {
+    clearDrag();
+  };
+
+  // --- SHOW ME animation (files/ranks + move text) ---
+  const runShowMeAnimation = async (runner, expected) => {
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    setRunStartTime(null);
+    clearSelection();
+    clearGuide();
+
+    // Base green-ish hint on from/to
+    setHintSquares({
+      [expected.from]: ORIGIN_HIGHLIGHT,
+      [expected.to]: DEST_HIGHLIGHT,
+    });
+
+    const temp = new Chess(runner.chess.fen());
+    temp.move({
+      from: expected.from,
+      to: expected.to,
+      promotion: expected.promotion || "q",
+    });
+    setFen(temp.fen());
+
+    const toSquare = expected.to;
+    const file = toSquare[0];
+    const rank = toSquare[1];
+    const fileIndexTarget = FILES.indexOf(file);
+    const rankIndexTarget = RANKS.indexOf(rank);
+
+    // SAN text (e.g. "Nf6+" -> "Nf6")
+    const sanText = (expected.san || toSquare).replace(/[+#]$/g, "");
+
+    // 1) Flash files a..target
+    for (let i = 0; i <= fileIndexTarget; i++) {
+      const f = FILES[i];
+      const squares = RANKS.map((r) => f + r);
+      const sqStyles = squares.reduce((acc, s) => {
+        acc[s] = FLASH_HIGHLIGHT;
+        return acc;
+      }, {});
+      setGuideSquares(sqStyles);
+
+      setFileOverlay({
+        text: f.toUpperCase(),
+        colIndex: i,
+        rankIndex: rankIndexTarget,
+      });
+
+      await sleep(260);
+
+      if (i < fileIndexTarget) {
+        setGuideSquares({});
+        setFileOverlay(null);
+        await sleep(90);
+      }
+    }
+
+    setGuideSquares({});
+
+    // 2) Flash ranks 1..target along target file
+    for (let i = 0; i <= rankIndexTarget; i++) {
+      const rnk = RANKS[i];
+      const squares = FILES.map((f) => f + rnk);
+      const sqStyles = squares.reduce((acc, s) => {
+        acc[s] = FLASH_HIGHLIGHT;
+        return acc;
+      }, {});
+      setGuideSquares(sqStyles);
+
+      setRankOverlay({
+        text: rnk,
+        colIndex: fileIndexTarget,
+        rankIndex: i,
+      });
+
+      await sleep(260);
+
+      if (i < rankIndexTarget) {
+        setGuideSquares({});
+        setRankOverlay(null);
+        await sleep(90);
+      }
+    }
+
+    setGuideSquares({});
+
+    // Let file + rank sit together briefly
+    await sleep(200);
+
+    // 3) Replace with final move text (e.g. "Nf6")
+    setFileOverlay(null);
+    setRankOverlay(null);
+    setMoveOverlay({
+      text: sanText,
+      colIndex: fileIndexTarget,
+      rankIndex: rankIndexTarget,
+    });
+
+    setFinalMessage(`The right move was ${sanText}!`);
+    await sleep(1300);
+
+    clearGuide();
+    setHintSquares({});
+    restartLevel();
+  };
+
+  const handleShowMe = async () => {
+    const runner = levelRunnerRef.current;
+    const expected = wrongDialog.expectedMove;
+    if (!runner || !expected) {
+      restartLevel();
+      return;
+    }
+
+    setWrongDialog({ visible: false, expectedMove: null });
+    await runShowMeAnimation(runner, expected);
   };
 
   if (!level) return null;
 
-  // Determine which side should be at the bottom of the board
   const boardOrientation =
     level.playerColor === "black" ? "black" : "white";
 
-  // v5 API: build an options object
+  // Merge all highlight layers
+  const mergedSquareStyles = {
+    ...selectionSquares,
+    ...dragSquares,
+    ...guideSquares,
+    ...hintSquares,
+  };
+
+  // logical (fileIndex, rankIndex) -> pixel position, respecting orientation
+  const squareToPixel = (fileIndex, rankIndex) => {
+    let colBoard, rowBoard;
+
+    if (boardOrientation === "white") {
+      colBoard = fileIndex;
+      rowBoard = 7 - rankIndex;
+    } else {
+      // black at bottom: h8 bottom-left
+      colBoard = 7 - fileIndex;
+      rowBoard = rankIndex;
+    }
+
+    return {
+      left: ((colBoard + 0.5) * BOARD_SIZE) / 8,
+      top: ((rowBoard + 0.5) * BOARD_SIZE) / 8,
+    };
+  };
+
+  // --- Overlay styles (files, ranks, move) with icy theme ---
+  let fileOverlayStyle = null;
+  if (fileOverlay) {
+    const { left, top } = squareToPixel(
+      fileOverlay.colIndex,
+      fileOverlay.rankIndex
+    );
+    fileOverlayStyle = {
+      ...OVERLAY_BASE,
+      left,
+      top,
+      fontSize: "3rem",
+      color: "#e0f2fe", // icy silver-blue
+      textShadow:
+        "0 0 6px rgba(148,163,184,0.9), 0 0 14px rgba(129,199,255,0.9), 0 0 26px rgba(56,189,248,0.8)",
+    };
+  }
+
+  let rankOverlayStyle = null;
+  if (rankOverlay) {
+    const { left, top } = squareToPixel(
+      rankOverlay.colIndex,
+      rankOverlay.rankIndex
+    );
+    rankOverlayStyle = {
+      ...OVERLAY_BASE,
+      left,
+      top,
+      fontSize: "3rem",
+      color: "#f1f5f9", // slightly brighter silver
+      textShadow:
+        "0 0 6px rgba(148,163,184,0.9), 0 0 16px rgba(129,199,255,0.9), 0 0 28px rgba(59,130,246,0.85)",
+    };
+  }
+
+  let moveOverlayStyle = null;
+  if (moveOverlay) {
+    const { left, top } = squareToPixel(
+      moveOverlay.colIndex,
+      moveOverlay.rankIndex
+    );
+    moveOverlayStyle = {
+      ...OVERLAY_BASE,
+      left,
+      top,
+      fontSize: "3.4rem",
+      color: "#ffffff", // chrome-white
+      textShadow:
+        "0 0 10px rgba(191,219,254,1), 0 0 22px rgba(129,199,255,0.95), 0 0 40px rgba(56,189,248,0.9)",
+    };
+  }
+
   const chessboardOptions = {
     id: "main-board",
-    boardWidth: 520,
+    boardWidth: BOARD_SIZE,
     position: fen,
-    boardOrientation, // orientation lives inside options
-    customSquareStyles: hintSquares,
-    squareStyles: hintSquares,
-    onPieceDrop: ({ sourceSquare, targetSquare }) => {
-      console.log("onPieceDrop", sourceSquare, targetSquare);
-      return handlePieceDrop(sourceSquare, targetSquare);
-    },
+    boardOrientation,
+    squareStyles: mergedSquareStyles,
+    onPieceDrop: ({ sourceSquare, targetSquare }) =>
+      handlePieceDrop(sourceSquare, targetSquare),
+    onSquareClick: ({ square }) => handleSquareClick({ square }),
+    onPieceDragBegin: ({ sourceSquare }) =>
+      handlePieceDragBegin({ sourceSquare }),
+    onPieceDragEnd: () => handlePieceDragEnd(),
   };
 
   return (
@@ -345,21 +628,45 @@ export default function ChessLevel({ level }) {
         paddingBottom: "2rem",
       }}
     >
-      {/* Board, aligned towards top-left of the content area */}
-      <div style={{ maxWidth: 520 }}>
+      {/* Board + overlays */}
+      <div style={{ maxWidth: BOARD_SIZE, position: "relative" }}>
         <Chessboard options={chessboardOptions} />
+        {fileOverlay && fileOverlayStyle && (
+          <div style={fileOverlayStyle}>{fileOverlay.text}</div>
+        )}
+        {rankOverlay && rankOverlayStyle && (
+          <div style={rankOverlayStyle}>{rankOverlay.text}</div>
+        )}
+        {moveOverlay && moveOverlayStyle && (
+          <div style={moveOverlayStyle}>{moveOverlay.text}</div>
+        )}
       </div>
 
-      {/* Timer just under the board */}
+      {/* Timer */}
       <p style={{ marginTop: "0.75rem" }}>
         <strong>Elapsed:</strong> {elapsed}s&nbsp;&nbsp;
         <strong>Time limit:</strong> {timeLimit}s
       </p>
 
-      {/* Restart button below timer */}
+      {/* Restart button */}
       <button onClick={restartLevel}>Restart level</button>
 
-      {/* Wrong-move dialog overlay */}
+      {/* Final "right move" message */}
+      {finalMessage && (
+        <p
+          style={{
+            marginTop: "0.75rem",
+            fontSize: "1.1rem",
+            fontWeight: 600,
+            color: "#e0f2fe",
+            textShadow: "0 0 10px rgba(129,199,255,0.9)",
+          }}
+        >
+          {finalMessage}
+        </p>
+      )}
+
+      {/* Wrong-move dialog */}
       {wrongDialog.visible && (
         <div className="wrong-move-backdrop">
           <div className="wrong-move-dialog">
