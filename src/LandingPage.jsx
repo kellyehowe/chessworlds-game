@@ -1,6 +1,7 @@
 // src/LandingPage.jsx
+
 import React, { useEffect, useState } from "react";
-import "./styles/LandingPage.css";
+import "./LandingPage.css";
 
 const ACCESS_CODE = "KNIGHT"; // <-- change this whenever you want a new code
 

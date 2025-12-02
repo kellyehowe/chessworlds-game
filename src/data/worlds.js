@@ -1,4 +1,5 @@
 // src/data/worlds.js
+
 import { games } from "./games";
 
 const gamesById = Object.fromEntries(games.map((g) => [g.id, g]));

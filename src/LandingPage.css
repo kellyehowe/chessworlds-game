@@ -270,3 +270,15 @@
     opacity: 1;
   }
 }
+
+/* EXTRA: mobile tweak so "CHESS WORLDS" fits better */
+@media (max-width: 480px) {
+  .cw-logo {
+    font-size: clamp(26px, 6vw, 32px);
+    gap: 0.18em;
+  }
+
+  .cw-logo-space {
+    width: 0.6em;
+  }
+}

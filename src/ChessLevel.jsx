@@ -1,7 +1,9 @@
 // src/ChessLevel.jsx
+
 import React, { useEffect, useRef, useState } from "react";
 import { Chess } from "chess.js";
 import { Chessboard } from "react-chessboard";
+import LevelRunner from "./core/LevelRunner.js";
 
 // --- board geometry + helpers ---
 const BOARD_SIZE = 520;
@@ -18,7 +20,7 @@ const OVERLAY_BASE = {
   fontFamily:
     "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   fontWeight: 900,
-  textTransform: "uppercase",
+  // no textTransform here so SAN like "Nf3" looks official
 };
 
 // Icy teal origin square (where you start the move)
@@ -41,145 +43,6 @@ const FLASH_HIGHLIGHT = {
   boxShadow: "inset 0 0 0 3px rgba(129,199,255,0.95)",
 };
 
-// === Level runner (historical move enforcement) ==============
-class LevelRunner {
-  constructor(level) {
-    this.level = level;
-    this.playerColor = level.playerColor === "white" ? "w" : "b";
-
-    this.fullMoves = [];
-
-    const temp = new Chess();
-    try {
-      const loaded = temp.loadPgn(level.pgn, { sloppy: true });
-      if (!loaded) {
-        console.warn("Failed to load PGN for level:", level.id);
-      }
-      this.fullMoves = temp.history({ verbose: true }) || [];
-    } catch (err) {
-      console.error("Error loading PGN for level:", level.id, err);
-      this.fullMoves = [];
-    }
-
-    console.log("Full moves for level", level.id, this.fullMoves);
-
-    this.chess = new Chess();
-    this.plyIndex = 0;
-    this.failed = false;
-
-    this._advanceToPlayerTurnStart();
-  }
-
-  _advanceToPlayerTurnStart() {
-    if (!this.fullMoves || this.fullMoves.length === 0) {
-      console.warn(
-        "No moves loaded for level; starting from initial position."
-      );
-      this.chess.reset();
-      this.plyIndex = 0;
-      return;
-    }
-
-    this.chess.reset();
-    this.plyIndex = 0;
-
-    while (
-      this.fullMoves[this.plyIndex] &&
-      this.fullMoves[this.plyIndex].color !== this.playerColor
-    ) {
-      const m = this.fullMoves[this.plyIndex];
-      this.chess.move({
-        from: m.from,
-        to: m.to,
-        promotion: m.promotion || "q",
-      });
-      this.plyIndex++;
-    }
-
-    console.log(
-      "After _advanceToPlayerTurnStart:",
-      "plyIndex =",
-      this.plyIndex,
-      "fen =",
-      this.chess.fen()
-    );
-  }
-
-  reset() {
-    this.failed = false;
-    this._advanceToPlayerTurnStart();
-  }
-
-  playerMoveCount() {
-    if (!this.fullMoves) return 0;
-    return this.fullMoves.filter((m) => m.color === this.playerColor).length;
-  }
-
-  getExpectedMove() {
-    if (!this.fullMoves) return undefined;
-    return this.fullMoves[this.plyIndex];
-  }
-
-  handlePlayerMove(from, to) {
-    console.log("handlePlayerMove called with", from, "->", to);
-
-    const expected = this.getExpectedMove();
-    console.log("Expected move at ply", this.plyIndex, ":", expected);
-
-    if (!expected) {
-      return { ok: false, completed: true };
-    }
-
-    if (expected.color !== this.playerColor) {
-      console.warn("It is not the player's turn in the historical sequence.");
-      this.failed = true;
-      return { ok: false, failed: true, expected };
-    }
-
-    const tempBoard = new Chess(this.chess.fen());
-    const move = tempBoard.move({ from, to, promotion: "q" });
-    console.log("chess.js move result:", move);
-
-    if (!move) {
-      this.failed = true;
-      return { ok: false, failed: true, expected };
-    }
-
-    const correct =
-      move.from === expected.from &&
-      move.to === expected.to &&
-      (move.promotion || null) === (expected.promotion || null);
-
-    console.log("Is move correct vs historical?", correct);
-
-    if (!correct) {
-      this.failed = true;
-      return { ok: false, failed: true, expected };
-    }
-
-    this.plyIndex++;
-
-    const next = this.fullMoves[this.plyIndex];
-    if (next && next.color !== this.playerColor) {
-      console.log("Auto-playing opponent move:", next);
-      tempBoard.move({
-        from: next.from,
-        to: next.to,
-        promotion: next.promotion || "q",
-      });
-      this.plyIndex++;
-    }
-
-    this.chess = tempBoard;
-
-    const completed = this.plyIndex >= this.fullMoves.length;
-    const fen = this.chess.fen();
-    console.log("New FEN after move:", fen);
-
-    return { ok: true, fen, completed };
-  }
-}
-
 export default function ChessLevel({ level }) {
   const [fen, setFen] = useState(new Chess().fen());
   const [elapsed, setElapsed] = useState(0);
@@ -190,6 +53,13 @@ export default function ChessLevel({ level }) {
     visible: false,
     expectedMove: null,
   });
+
+  const [successDialog, setSuccessDialog] = useState({
+    visible: false,
+    time: 0,
+    score: 0,
+  });
+
   const [hintSquares, setHintSquares] = useState({});
 
   const [selection, setSelection] = useState({
@@ -224,6 +94,8 @@ export default function ChessLevel({ level }) {
     setFinalMessage(null);
   };
 
+  const stopTimer = () => setRunStartTime(null);
+
   // Init / reset when level changes
   useEffect(() => {
     if (!level) return;
@@ -240,9 +112,11 @@ export default function ChessLevel({ level }) {
     setElapsed(0);
     setRunStartTime(null);
     setWrongDialog({ visible: false, expectedMove: null });
+    setSuccessDialog({ visible: false, time: 0, score: 0 });
     setHintSquares({});
     clearSelection();
     clearGuide();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [level]);
 
   // Timer
@@ -264,6 +138,7 @@ export default function ChessLevel({ level }) {
     setElapsed(0);
     setRunStartTime(null);
     setWrongDialog({ visible: false, expectedMove: null });
+    setSuccessDialog({ visible: false, time: 0, score: 0 });
     setHintSquares({});
     clearSelection();
     clearGuide();
@@ -273,12 +148,16 @@ export default function ChessLevel({ level }) {
     restartLevel();
   };
 
+  const handleSuccessClose = () => {
+    setSuccessDialog({ visible: false, time: 0, score: 0 });
+  };
+
   // Core move application used by click + drag
   const attemptMove = (sourceSquare, targetSquare) => {
     const runner = levelRunnerRef.current;
     if (!runner) return { ok: false };
 
-    if (wrongDialog.visible) {
+    if (wrongDialog.visible || successDialog.visible) {
       return { ok: false };
     }
 
@@ -289,7 +168,7 @@ export default function ChessLevel({ level }) {
     const result = runner.handlePlayerMove(sourceSquare, targetSquare);
 
     if (!result.ok) {
-      setRunStartTime(null);
+      stopTimer();
       setWrongDialog({
         visible: true,
         expectedMove: result.expected || null,
@@ -311,13 +190,13 @@ export default function ChessLevel({ level }) {
         Math.round((1000 * (tl - totalSeconds)) / tl)
       );
 
-      window.alert(
-        `Level complete!\nTime: ${totalSeconds.toFixed(
-          1
-        )}s\nScore: ${score}`
-      );
+      setSuccessDialog({
+        visible: true,
+        time: totalSeconds,
+        score,
+      });
 
-      setRunStartTime(null);
+      stopTimer();
     }
 
     return { ok: true };
@@ -332,7 +211,7 @@ export default function ChessLevel({ level }) {
   // Click-select / click-move
   const handleSquareClick = ({ square }) => {
     const runner = levelRunnerRef.current;
-    if (!runner || wrongDialog.visible) return;
+    if (!runner || wrongDialog.visible || successDialog.visible) return;
 
     const chess = runner.chess;
     const playerColor = runner.playerColor;
@@ -377,7 +256,7 @@ export default function ChessLevel({ level }) {
   // Drag highlights: origin + all legal targets
   const handlePieceDragBegin = ({ sourceSquare }) => {
     const runner = levelRunnerRef.current;
-    if (!runner || wrongDialog.visible) return;
+    if (!runner || wrongDialog.visible || successDialog.visible) return;
 
     const chess = runner.chess;
     const playerColor = runner.playerColor;
@@ -410,11 +289,11 @@ export default function ChessLevel({ level }) {
   const runShowMeAnimation = async (runner, expected) => {
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-    setRunStartTime(null);
+    stopTimer();
     clearSelection();
     clearGuide();
 
-    // Base green-ish hint on from/to
+    // Base hint on from/to
     setHintSquares({
       [expected.from]: ORIGIN_HIGHLIGHT,
       [expected.to]: DEST_HIGHLIGHT,
@@ -448,7 +327,7 @@ export default function ChessLevel({ level }) {
       setGuideSquares(sqStyles);
 
       setFileOverlay({
-        text: f.toUpperCase(),
+        text: f, // lowercase for file letter
         colIndex: i,
         rankIndex: rankIndexTarget,
       });
@@ -628,7 +507,7 @@ export default function ChessLevel({ level }) {
         paddingBottom: "2rem",
       }}
     >
-      {/* Board + overlays */}
+      {/* Board + overlays + dialogs */}
       <div style={{ maxWidth: BOARD_SIZE, position: "relative" }}>
         <Chessboard options={chessboardOptions} />
         {fileOverlay && fileOverlayStyle && (
@@ -639,6 +518,41 @@ export default function ChessLevel({ level }) {
         )}
         {moveOverlay && moveOverlayStyle && (
           <div style={moveOverlayStyle}>{moveOverlay.text}</div>
+        )}
+
+        {/* Wrong-move dialog */}
+        {wrongDialog.visible && (
+          <div className="wrong-move-backdrop">
+            <div className="wrong-move-dialog">
+              <h3>Don&apos;t quit your day job!</h3>
+              <p>You played the wrong move.</p>
+              <div className="wrong-move-buttons">
+                <button onClick={handleTryAgain}>Try Again?</button>
+                <button className="primary" onClick={handleShowMe}>
+                  Show me!
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Success dialog (same style/position) */}
+        {successDialog.visible && (
+          <div className="wrong-move-backdrop">
+            <div className="wrong-move-dialog">
+              <h3>Level complete!</h3>
+              <p>
+                Time: {successDialog.time.toFixed(1)}s
+                <br />
+                Score: {successDialog.score}
+              </p>
+              <div className="wrong-move-buttons">
+                <button className="primary" onClick={handleSuccessClose}>
+                  OK
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
 
@@ -664,22 +578,6 @@ export default function ChessLevel({ level }) {
         >
           {finalMessage}
         </p>
-      )}
-
-      {/* Wrong-move dialog */}
-      {wrongDialog.visible && (
-        <div className="wrong-move-backdrop">
-          <div className="wrong-move-dialog">
-            <h3>Don&apos;t quit your day job!</h3>
-            <p>You played the wrong move.</p>
-            <div className="wrong-move-buttons">
-              <button onClick={handleTryAgain}>Try Again?</button>
-              <button className="primary" onClick={handleShowMe}>
-                Show me!
-              </button>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );

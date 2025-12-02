@@ -1,8 +1,10 @@
 // src/GameShell.jsx
+
 import React, { useState } from "react";
 import { worlds } from "./data/worlds";
 import ChessLevel from "./ChessLevel";
-import "./styles/GamePage.css";
+import "./GameShell.css";
+
 
 export default function GameShell() {
   const [selectedWorldId, setSelectedWorldId] = useState(worlds[0].id);

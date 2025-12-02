@@ -1,4 +1,5 @@
 // src/data/games.js
+
 // Central store for all historical games.
 // Sorted by era, then roughly by year/date.
 // Each game can be reused in multiple "worlds" and has a global `show` flag.
