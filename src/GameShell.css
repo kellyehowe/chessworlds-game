@@ -1,4 +1,4 @@
-/* src/styles/GamePage.css */
+/* src/GameShell.css */
 
 /* Root container for the in-game UI */
 .app-root {
@@ -14,7 +14,9 @@
   overflow: hidden;
 }
 
-/* Sidebar */
+/* ------------------------------------------------------------
+   SIDEBAR
+------------------------------------------------------------ */
 .sidebar {
   width: 280px;
   background: #11141c;
@@ -36,7 +38,7 @@
   gap: 0.5rem;
 }
 
-/* worlds + levels buttons */
+/* Worlds + Levels buttons */
 .list-item {
   text-align: left;
   background: rgba(255, 255, 255, 0.03);
@@ -79,7 +81,9 @@
   font-family: monospace;
 }
 
-/* Content area */
+/* ------------------------------------------------------------
+   CONTENT AREA
+------------------------------------------------------------ */
 .content {
   flex: 1;
   padding: 1rem 2.5rem 2rem;
@@ -88,7 +92,7 @@
 
 /* Game title */
 .game-title {
-  text-align: left; /* was center */
+  text-align: left;
   font-size: 1.4rem;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -96,7 +100,7 @@
   margin: 0 0 0.5rem;
 }
 
-/* Level heading styling */
+/* Level title + subtitle */
 .level-title {
   margin: 0 0 0.25rem;
 }
@@ -106,7 +110,7 @@
   opacity: 0.8;
 }
 
-/* Level info card */
+/* Info card under board */
 .level-info-card {
   background: rgba(255, 255, 255, 0.05);
   padding: 1rem;
@@ -115,7 +119,9 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-/* Buttons INSIDE THE GAME ONLY */
+/* ------------------------------------------------------------
+   BUTTONS
+------------------------------------------------------------ */
 .app-root button {
   border-radius: 6px;
   border: none;
@@ -130,7 +136,6 @@
   background: #4d5370;
 }
 
-/* primary button variant (for wrong move dialog) */
 .app-root button.primary {
   background: #4f46e5;
 }
@@ -139,8 +144,9 @@
   background: #6366f1;
 }
 
-/* Wrong-move dialog */
-
+/* ------------------------------------------------------------
+   WRONG-MOVE DIALOG
+------------------------------------------------------------ */
 .wrong-move-backdrop {
   position: absolute;
   inset: 0;
@@ -149,6 +155,7 @@
   align-items: center;
   justify-content: center;
   pointer-events: auto;
+  z-index: 3000;
 }
 
 .wrong-move-dialog {
@@ -176,7 +183,99 @@
   justify-content: center;
 }
 
-/* Mobile layout for game */
+/* ------------------------------------------------------------
+   FEEDBACK BUTTON (BOTTOM RIGHT)
+------------------------------------------------------------ */
+.feedback-button {
+  position: fixed;
+  bottom: 22px;
+  right: 22px;
+  z-index: 5000;
+
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 10px;
+  padding: 0.6rem 1.1rem;
+
+  color: #cfd3ff;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  backdrop-filter: blur(6px);
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.feedback-button:hover {
+  background: rgba(255, 255, 255, 0.14);
+  transform: translateY(-2px);
+}
+
+/* ------------------------------------------------------------
+   FEEDBACK DIALOG STYLES
+------------------------------------------------------------ */
+.feedback-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 6000;
+}
+
+.feedback-dialog {
+  background: #151827;
+  padding: 1.4rem 1.7rem;
+  border-radius: 12px;
+  width: 92%;
+  max-width: 360px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 22px 48px rgba(0, 0, 0, 0.6);
+  text-align: center;
+}
+
+.feedback-dialog h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1.25rem;
+}
+
+.feedback-dialog textarea {
+  width: 100%;
+  height: 110px;
+  resize: none;
+  padding: 0.6rem;
+  border-radius: 8px;
+  border: 1px solid #2a2f3d;
+  background: #0c0e14;
+  color: #d0d4e8;
+  margin: 0.6rem 0;
+  font-size: 0.9rem;
+}
+
+.feedback-actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.8rem;
+}
+
+.feedback-actions button {
+  padding: 0.45rem 1rem;
+  font-size: 0.9rem;
+  border-radius: 7px;
+}
+
+.feedback-actions .primary {
+  background: #4f46e5;
+}
+
+.feedback-actions .primary:hover {
+  background: #6366f1;
+}
+
+/* ------------------------------------------------------------
+   MOBILE LAYOUT
+------------------------------------------------------------ */
 @media (max-width: 768px) {
   .app-main {
     flex-direction: column;
@@ -190,5 +289,11 @@
 
   .content {
     padding: 0.75rem 1rem 2rem;
+  }
+
+  .feedback-button {
+    bottom: 16px;
+    right: 16px;
+    padding: 0.5rem 1rem;
   }
 }

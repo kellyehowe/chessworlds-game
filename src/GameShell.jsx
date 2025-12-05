@@ -3,8 +3,8 @@
 import React, { useState } from "react";
 import { worlds } from "./data/worlds";
 import ChessLevel from "./ChessLevel";
+import FeedbackDialog from "./components/FeedbackDialog";
 import "./GameShell.css";
-
 
 export default function GameShell() {
   const [selectedWorldId, setSelectedWorldId] = useState(worlds[0].id);
@@ -19,6 +19,8 @@ export default function GameShell() {
     selectedWorld.levels[0];
 
   const [cheatInput, setCheatInput] = useState("");
+
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
 
   function handleCheatSubmit(e) {
     e.preventDefault();
@@ -110,6 +112,23 @@ export default function GameShell() {
           </div>
         </section>
       </main>
+
+      {/* Floating feedback button */}
+      <button
+        type="button"
+        className="feedback-button"
+        onClick={() => setIsFeedbackOpen(true)}
+      >
+        Feedback
+      </button>
+
+      {/* Feedback dialog */}
+      <FeedbackDialog
+        isOpen={isFeedbackOpen}
+        onClose={() => setIsFeedbackOpen(false)}
+        world={selectedWorld}
+        level={selectedLevel}
+      />
     </div>
   );
 }
