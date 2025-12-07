@@ -2,37 +2,23 @@
 
 const express = require("express");
 const multer = require("multer");
-const nodemailer = require("nodemailer");
+const sgMail = require("@sendgrid/mail");
 
 const router = express.Router();
 
-// Multer setup: store file in memory, limit size to 5MB
+// ----- SendGrid setup -----
+if (!process.env.SENDGRID_API_KEY) {
+  console.warn(
+    "[support] SENDGRID_API_KEY is not set. Support emails will fail."
+  );
+}
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+
+// ----- Multer for optional screenshot upload -----
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 } // 5 MB
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
 });
-
-/**
- * Create a Nodemailer transporter using environment variables.
- *
- * For SendGrid, configure Render like:
- *   SMTP_HOST   = smtp.sendgrid.net
- *   SMTP_PORT   = 587
- *   SMTP_SECURE = false
- *   SMTP_USER   = apikey
- *   SMTP_PASS   = <your SendGrid API key>
- */
-function createTransporter() {
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT || 587),
-    secure: process.env.SMTP_SECURE === "true", // false for TLS on 587
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS
-    }
-  });
-}
 
 // POST /api/support
 router.post("/", upload.single("screenshot"), async (req, res) => {
@@ -42,14 +28,17 @@ router.post("/", upload.single("screenshot"), async (req, res) => {
       levelTitle = "",
       message = "",
       userEmail = "",
-      sendCopy = "false"
+      sendCopy = "false",
     } = req.body;
 
     if (!message.trim()) {
       return res.status(400).json({ error: "Message is required." });
     }
 
-    const transporter = createTransporter();
+    const toEmail =
+      process.env.SUPPORT_TO_EMAIL || "support@chessworldsgame.com";
+    const fromEmail =
+      process.env.SUPPORT_FROM_EMAIL || "support@chessworldsgame.com";
 
     const lines = [
       "Chess Worlds Feedback",
@@ -60,44 +49,49 @@ router.post("/", upload.single("screenshot"), async (req, res) => {
       userEmail ? `From: ${userEmail}` : "",
       "",
       "Message:",
-      message
-    ].filter(Boolean);
+      message,
+    ];
 
-    const mailOptions = {
-      from: `"Chess Worlds Support" <support@chessworldsgame.com>`,
-      // NOTE: "to" must be a verified sender or a domain allowed by SendGrid
-      to: "support@chessworldsgame.com",
-      subject:
-        "[Chess Worlds] Feedback" +
-        (worldTitle || levelTitle
-          ? ` – ${worldTitle || ""} ${levelTitle || ""}`
-          : ""),
-      text: lines.join("\n"),
-      attachments: []
-    };
+    const text = lines.filter(Boolean).join("\n");
 
-    // Optional screenshot
+    let subject = "[Chess Worlds] Feedback";
+    if (worldTitle || levelTitle) {
+      subject += " – " + [worldTitle, levelTitle].filter(Boolean).join(" / ");
+    }
+
+    const attachments = [];
+
     if (req.file) {
-      mailOptions.attachments.push({
+      attachments.push({
         filename: req.file.originalname,
-        content: req.file.buffer
+        type: req.file.mimetype,
+        content: req.file.buffer.toString("base64"), // SendGrid wants base64
+        disposition: "attachment",
       });
     }
 
-    // Optional copy to user
+    const msg = {
+      to: toEmail,
+      from: {
+        email: fromEmail,
+        name: "Chess Worlds Support",
+      },
+      subject,
+      text,
+      attachments,
+    };
+
     if (sendCopy === "true" && userEmail) {
-      mailOptions.cc = userEmail;
+      msg.cc = userEmail;
     }
 
-    await transporter.sendMail(mailOptions);
+    console.log("[support] Sending email via SendGrid…");
+    await sgMail.send(msg);
+    console.log("[support] Email sent OK");
 
     return res.json({ ok: true });
   } catch (err) {
-    console.error("Error sending support email:", {
-      message: err.message,
-      stack: err.stack
-    });
-
+    console.error("Error sending support email:", err);
     return res
       .status(500)
       .json({ error: "Failed to send feedback. Please try again later." });
