@@ -1,10 +1,13 @@
 // src/components/FeedbackDialog.jsx
 import React, { useState } from "react";
 
-// Base URL for the API.
-// In dev: comes from VITE_API_BASE_URL in the root .env (falls back to localhost).
+// Decide API base URL explicitly.
+// - If running on localhost: use local server (port 5000).
+// - Otherwise (production site): use Render support server.
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+  typeof window !== "undefined" && window.location.hostname === "localhost"
+    ? "http://localhost:5000"
+    : "https://chessworldsgame-support.onrender.com";
 
 export default function FeedbackDialog({ isOpen, onClose, world, level }) {
   const [message, setMessage] = useState("");
@@ -48,14 +51,17 @@ export default function FeedbackDialog({ isOpen, onClose, world, level }) {
         formData.append("levelTitle", level.title || `Level ${level.id || ""}`);
       }
 
-      // Send only the first selected file as "screenshot" (backend expects this)
+      // Send only the first selected file as "screenshot"
       if (files.length > 0) {
         formData.append("screenshot", files[0]);
       }
 
+      // TEMP: log so we can see in browser console what URL it’s using.
+      console.log("Sending feedback to:", `${API_BASE_URL}/api/support`);
+
       const res = await fetch(`${API_BASE_URL}/api/support`, {
         method: "POST",
-        body: formData
+        body: formData,
       });
 
       if (!res.ok) {
@@ -92,7 +98,7 @@ export default function FeedbackDialog({ isOpen, onClose, world, level }) {
           style={{
             fontSize: "0.85rem",
             opacity: 0.8,
-            marginBottom: "0.5rem"
+            marginBottom: "0.5rem",
           }}
         >
           World: <strong>{world?.name || "N/A"}</strong> · Level:{" "}
@@ -119,7 +125,7 @@ export default function FeedbackDialog({ isOpen, onClose, world, level }) {
               border: "1px solid #2a2f3d",
               background: "#0c0e14",
               color: "#d0d4e8",
-              fontSize: "0.9rem"
+              fontSize: "0.9rem",
             }}
           />
 
@@ -129,7 +135,7 @@ export default function FeedbackDialog({ isOpen, onClose, world, level }) {
               alignItems: "center",
               gap: "0.4rem",
               fontSize: "0.85rem",
-              marginBottom: "0.4rem"
+              marginBottom: "0.4rem",
             }}
           >
             <input
@@ -148,7 +154,7 @@ export default function FeedbackDialog({ isOpen, onClose, world, level }) {
             style={{
               width: "100%",
               margin: "0.3rem 0 0.5rem",
-              fontSize: "0.85rem"
+              fontSize: "0.85rem",
             }}
           />
 
@@ -158,7 +164,7 @@ export default function FeedbackDialog({ isOpen, onClose, world, level }) {
                 marginTop: "0.25rem",
                 marginBottom: "0.45rem",
                 color: "#fecaca",
-                fontSize: "0.8rem"
+                fontSize: "0.8rem",
               }}
             >
               {error}
@@ -171,7 +177,7 @@ export default function FeedbackDialog({ isOpen, onClose, world, level }) {
                 marginTop: "0.25rem",
                 marginBottom: "0.45rem",
                 color: "#bbf7d0",
-                fontSize: "0.8rem"
+                fontSize: "0.8rem",
               }}
             >
               Thanks! Your feedback was sent.
