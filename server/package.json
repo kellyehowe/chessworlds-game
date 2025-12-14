@@ -1,10 +1,16 @@
 {
+  "_file": "/server/package.json",
+  "_purpose": "Backend – Express support server (email + attachments)",
+
   "name": "chessworlds-support-server",
   "version": "1.0.0",
-  "main": "index.js",
+  "private": true,
+
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "dev": "nodemon index.js"
   },
+
   "dependencies": {
     "@sendgrid/mail": "^8.1.6",
     "cors": "^2.8.5",
@@ -12,5 +18,9 @@
     "express": "^4.19.0",
     "multer": "1.4.5-lts.1",
     "nodemailer": "^6.9.0"
+  },
+
+  "devDependencies": {
+    "nodemon": "^3.1.0"
   }
 }

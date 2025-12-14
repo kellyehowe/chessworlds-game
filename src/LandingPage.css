@@ -1,4 +1,4 @@
-/* src/styles/LandingPage.css */
+/* src/LandingPage.css */
 
 /* Layout */
 
@@ -65,14 +65,21 @@
   height: 1.1em;
   border-radius: 999px;
   cursor: default;
+
+  /* prevents long-press text selection on mobile */
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+
+  /* smooth click feedback */
+  transform: translateZ(0);
 }
 
-/* make the O clickable */
+/* portal class exists only so the portal zoom can target the O */
 .cw-logo-letter--portal {
-  cursor: pointer;
+  cursor: default;
 }
 
-/* zoom animation only on the O */
+/* zoom animation only on the O during portal transition */
 .cw-root--portal .cw-logo-letter--portal {
   animation: cw-portal-zoom 0.7s cubic-bezier(0.23, 1, 0.32, 1) forwards;
 }
@@ -82,7 +89,8 @@
   content: "";
   position: fixed;
   inset: 0;
-  background: radial-gradient(circle at center, rgba(34, 197, 94, 0.18), transparent 58%),
+  background:
+    radial-gradient(circle at center, rgba(34, 197, 94, 0.18), transparent 58%),
     radial-gradient(circle at center, rgba(15, 23, 42, 0.9), rgba(0, 0, 0, 0.98));
   mix-blend-mode: screen;
   pointer-events: none;
@@ -195,42 +203,6 @@
   opacity: 0.8;
 }
 
-/* GAME PAGE (only used by the placeholder in the original version;
-   not needed now, but kept in case you reuse) */
-
-.cw-game-root {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: radial-gradient(circle at top, #0f172a 0, #020617 55%, #000 100%);
-  color: var(--cw-text);
-  padding: 32px 16px;
-}
-
-.cw-game-inner {
-  max-width: 720px;
-  width: 100%;
-  background: var(--cw-card-bg);
-  border-radius: var(--cw-radius);
-  border: 1px solid var(--cw-border);
-  padding: 32px 28px;
-  box-shadow: var(--cw-shadow);
-}
-
-.cw-game-inner h2 {
-  margin-top: 0;
-  margin-bottom: 10px;
-  font-size: 24px;
-}
-
-.cw-game-inner p {
-  margin-top: 6px;
-  margin-bottom: 6px;
-  font-size: 15px;
-  color: #cbd5f5;
-}
-
 /* Animations */
 
 @keyframes cw-portal-zoom {
@@ -268,6 +240,100 @@
   }
   100% {
     opacity: 1;
+  }
+}
+
+/* click feedback: all letters glimmer the same (no hover effects) */
+.cw-logo-letter--glimmer {
+  animation: cw-letter-glimmer 0.48s ease-out;
+}
+
+@keyframes cw-letter-glimmer {
+  0% {
+    transform: scale(1);
+    filter: brightness(1);
+    box-shadow: none;
+  }
+  45% {
+    transform: scale(1.08);
+    filter: brightness(1.25);
+    box-shadow: 0 0 18px rgba(255, 255, 255, 0.22);
+  }
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+    box-shadow: none;
+  }
+}
+
+/* During portal transition, let portal zoom dominate */
+.cw-root--portal .cw-logo-letter--glimmer {
+  animation: none;
+}
+
+/* =========================
+   FIREWORKS (Mario-ish)
+   - No hover effects
+   - Random mid-screen placement
+   - Fixed cadence (handled in JS)
+   ========================= */
+
+.cw-fireworks {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50; /* above overlay, below portal glow (::after is z=10 but fixed; this still shows) */
+}
+
+.cw-burst {
+  position: fixed;
+  transform: translate(-50%, -50%);
+  width: 1px;
+  height: 1px;
+}
+
+.cw-spark {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--sz);
+  height: var(--sz);
+  border-radius: 999px;
+  background: rgba(245, 245, 245, 0.95);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.25);
+  opacity: 0;
+
+  animation: cw-spark-pop 650ms ease-out forwards;
+  animation-delay: var(--delay);
+}
+
+.cw-spark--star {
+  border-radius: 3px;
+  box-shadow:
+    0 0 10px rgba(255, 255, 255, 0.25),
+    0 0 16px rgba(255, 255, 255, 0.18);
+}
+
+/* If portal starts, we keep fireworks harmless; portal already takes over visually */
+.cw-root--portal .cw-fireworks {
+  opacity: 0.9;
+}
+
+@keyframes cw-spark-pop {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.6);
+    filter: brightness(1);
+  }
+  12% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+    filter: brightness(1.2);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx), var(--dy)) scale(0.9);
+    filter: brightness(1);
   }
 }
 

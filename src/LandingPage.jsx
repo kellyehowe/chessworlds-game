@@ -1,56 +1,279 @@
 // src/LandingPage.jsx
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import "./LandingPage.css";
+import FireworksOverlay from "./components/FireworksOverlay";
 
-const ACCESS_CODE = "KNIGHT"; // <-- change this whenever you want a new code
+const CODE_KNIGHT = "KNIGHT";
+const CODE_KNIGHT69 = "KNIGHT69";
+// Future-ready (not “used” yet, but supported by the registry design)
+const CODE_KNIGHTMARE = "KNIGHTMARE";
 
-function LandingPage({ onUnlock }) {
+// Fireworks timing (Mario-ish cadence)
+const BURST_INTERVAL_MS = 160;
+const BURST_LIFETIME_MS = 700;
+
+// Fireworks policy:
+// - Start on step 2
+// - Step2 => 1 burst
+// - Step3 => 3 bursts
+// - Step4 => 6 bursts
+// - Step5 => 9 bursts
+function burstsForStep(stepNumber) {
+  if (stepNumber < 2) return 0;
+  if (stepNumber === 2) return 1;
+  return 3 * (stepNumber - 2);
+}
+
+function randomSafePoint() {
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+
+  // Safe rectangle: centered-ish so it’s usually visible
+  const xMin = w * 0.2;
+  const xMax = w * 0.8;
+  const yMin = h * 0.25;
+  const yMax = h * 0.75;
+
+  const x = xMin + Math.random() * (xMax - xMin);
+  const y = yMin + Math.random() * (yMax - yMin);
+
+  return { x, y };
+}
+
+function LandingPage({ onUnlock, onWrongCode }) {
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [isPortal, setIsPortal] = useState(false);
 
-  // When portal animation starts, switch to the game after it finishes
-  useEffect(() => {
-    let timer;
-    if (isPortal) {
-      timer = setTimeout(() => {
-        onUnlock();
-      }, 750); // match CSS animation duration
-    }
-    return () => {
-      if (timer) clearTimeout(timer);
+  // KNIGHT69 progress through non-O sequence only
+  const [seqStep, setSeqStep] = useState(0);
+
+  // Click feedback (glimmer)
+  const [glimmerIndex, setGlimmerIndex] = useState(-1);
+  const glimmerTimerRef = useRef(null);
+
+  // Fireworks overlay bursts
+  const [bursts, setBursts] = useState([]);
+  const burstTimersRef = useRef([]);
+
+  const normalizedCode = code.trim().toUpperCase();
+  const isKnightTyped = normalizedCode === CODE_KNIGHT;
+  const isKnight69Typed = normalizedCode === CODE_KNIGHT69;
+  const isKnightmareTyped = normalizedCode === CODE_KNIGHTMARE;
+
+  const triggerGlimmer = (index) => {
+    setGlimmerIndex(-1);
+    requestAnimationFrame(() => {
+      setGlimmerIndex(index);
+      if (glimmerTimerRef.current) clearTimeout(glimmerTimerRef.current);
+      glimmerTimerRef.current = setTimeout(() => {
+        setGlimmerIndex(-1);
+      }, 520);
+    });
+  };
+
+  const clearBurstTimers = () => {
+    burstTimersRef.current.forEach((t) => clearTimeout(t));
+    burstTimersRef.current = [];
+  };
+
+  const spawnBurst = () => {
+    const { x, y } = randomSafePoint();
+    const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const seed = (Date.now() ^ (Math.random() * 1e9)) >>> 0;
+
+    const burst = {
+      id,
+      x,
+      y,
+      seed,
+      particleCount: 12, // same size always (per your request)
     };
-  }, [isPortal, onUnlock]);
+
+    setBursts((prev) => [...prev, burst]);
+
+    // Remove after lifetime
+    const kill = setTimeout(() => {
+      setBursts((prev) => prev.filter((b) => b.id !== id));
+    }, BURST_LIFETIME_MS);
+
+    burstTimersRef.current.push(kill);
+  };
+
+  const spawnBursts = (count) => {
+    if (count <= 0) return;
+    for (let i = 0; i < count; i++) {
+      const t = setTimeout(() => {
+        // If portal started, stop spawning
+        if (isPortal) return;
+        spawnBurst();
+      }, i * BURST_INTERVAL_MS);
+      burstTimersRef.current.push(t);
+    }
+  };
+
+  useEffect(() => {
+    // Cleanup on unmount
+    return () => {
+      if (glimmerTimerRef.current) clearTimeout(glimmerTimerRef.current);
+      clearBurstTimers();
+    };
+  }, []);
 
   const handleChange = (e) => {
-    setCode(e.target.value.toUpperCase());
+    const next = e.target.value.toUpperCase();
+    setCode(next);
     if (error) setError("");
-  };
 
-  // Fake submit – this button always "fails"
-  const handleFakeSubmit = (e) => {
-    e.preventDefault();
-    setError("Incorrect code.");
-  };
-
-  // Secret handler – clicking the O checks the real code
-  const handleSecretEnter = () => {
-    if (code.trim() === ACCESS_CODE) {
-      setError("");
-      setIsPortal(true);
-    } else {
-      setError("Incorrect code.");
+    // Reset sequence if leaving KNIGHT69
+    if (next.trim().toUpperCase() !== CODE_KNIGHT69 && seqStep !== 0) {
+      setSeqStep(0);
     }
+  };
+
+  // ENTER always goes to Source Library (even for secret codes)
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setError("");
+    onWrongCode?.();
   };
 
   const title = "CHESS WORLDS";
+
+  // Locate indices for special letters in the title
+  const indices = useMemo(() => {
+    const chars = title.split("");
+    const pos = {
+      O: -1,
+      C: -1,
+      R: -1,
+      E: -1,
+      D: -1,
+      S_LEFT: -1,
+      S_RIGHT: -1,
+      S_MID: -1,
+    };
+
+    const sIdxs = [];
+    chars.forEach((ch, i) => {
+      const up = ch.toUpperCase();
+      if (up === "O") pos.O = i;
+      if (up === "C" && pos.C === -1) pos.C = i;
+      if (up === "R" && pos.R === -1) pos.R = i;
+      if (up === "E" && pos.E === -1) pos.E = i;
+      if (up === "D" && pos.D === -1) pos.D = i;
+      if (up === "S") sIdxs.push(i);
+    });
+
+    // For "CHESS WORLDS": S indices are usually [3,4,11]
+    pos.S_LEFT = sIdxs[0] ?? -1;
+    pos.S_RIGHT = sIdxs[1] ?? -1;
+    pos.S_MID = sIdxs[2] ?? -1;
+
+    return pos;
+  }, [title]);
+
+  // Secret registry (future-proof)
+  // Note: O is always the final “portal trigger” and never spawns fireworks.
+  const secrets = useMemo(() => {
+    return {
+      [CODE_KNIGHT]: {
+        steps: [], // no non-O steps
+        unlock: { isPrivileged: false },
+      },
+      [CODE_KNIGHT69]: {
+        // You observed it was: RIGHT S -> MID S -> LEFT S -> O
+        steps: ["S_RIGHT", "S_MID", "S_LEFT"],
+        unlock: { isPrivileged: true },
+      },
+      [CODE_KNIGHTMARE]: {
+        // Future: C -> R -> E -> D -> O
+        steps: ["C", "R", "E", "D"],
+        unlock: { isPrivileged: false, nightmare: true },
+      },
+    };
+  }, []);
+
+  const activeSecret =
+    secrets[normalizedCode] || null;
+
+  const activeSteps = activeSecret?.steps ?? [];
+  const stepsRequired = activeSteps.length;
+
+  const isSequenceSatisfied =
+    (isKnightTyped && stepsRequired === 0) ||
+    (isKnight69Typed && seqStep === stepsRequired) ||
+    (isKnightmareTyped && seqStep === stepsRequired);
+
+  const startPortalToGame = (payload) => {
+    setError("");
+    setIsPortal(true);
+
+    // Stop pending fireworks timers once portal begins
+    clearBurstTimers();
+
+    setTimeout(() => {
+      onUnlock?.(payload);
+    }, 750);
+  };
+
+  const handleOClick = () => {
+    if (!activeSecret) return;
+    if (!isSequenceSatisfied) return;
+
+    // No fireworks on O (per your request)
+    startPortalToGame(activeSecret.unlock || {});
+  };
+
+  const tokenForIndex = (index, chUpper) => {
+    // Special S tokens so you can define sequences using S_LEFT/S_RIGHT/S_MID
+    if (chUpper === "S") {
+      if (index === indices.S_LEFT) return "S_LEFT";
+      if (index === indices.S_RIGHT) return "S_RIGHT";
+      if (index === indices.S_MID) return "S_MID";
+      return "S";
+    }
+    if (chUpper === "O") return "O";
+    if (chUpper === "C") return "C";
+    if (chUpper === "R") return "R";
+    if (chUpper === "E") return "E";
+    if (chUpper === "D") return "D";
+    return chUpper;
+  };
+
+  const handleNonOClick = (token) => {
+    if (!activeSecret) return;
+
+    // Only process steps if the code has a defined sequence.
+    // (KNIGHT has none, so clicking letters does nothing “secret”.)
+    const expected = activeSteps[seqStep];
+    if (!expected) {
+      // If there are no steps required, clicking non-O doesn’t matter.
+      return;
+    }
+
+    if (token === expected) {
+      const nextStep = seqStep + 1;
+      setSeqStep(nextStep);
+
+      // Fireworks start on step 2 (non-O steps)
+      const burstCount = burstsForStep(nextStep);
+      spawnBursts(burstCount);
+      return;
+    }
+
+    // Wrong token breaks the sequence
+    if (seqStep !== 0) setSeqStep(0);
+  };
 
   return (
     <div className={`cw-root ${isPortal ? "cw-root--portal" : ""}`}>
       <div className="cw-overlay" />
 
-      {/* Floating title near top-centre */}
+      {/* Fireworks overlay */}
+      <FireworksOverlay bursts={bursts} />
+
       <header className="cw-hero">
         <h1 className="cw-logo" aria-label="Chess Worlds">
           {title.split("").map((ch, index) => {
@@ -62,16 +285,41 @@ function LandingPage({ onUnlock }) {
               );
             }
 
-            const isO = ch.toUpperCase() === "O";
+            const up = ch.toUpperCase();
+            const isO = index === indices.O && up === "O";
+
+            // Only during portal transition does the O receive portal class (to zoom)
+            const portalClass = isPortal && isO ? " cw-logo-letter--portal" : "";
+
+            // Any letter clicked glimmers briefly (identical behavior)
+            const glimmerClass =
+              glimmerIndex === index ? " cw-logo-letter--glimmer" : "";
+
+            const className = "cw-logo-letter" + portalClass + glimmerClass;
+
+            const onClick = () => {
+              triggerGlimmer(index);
+              if (isPortal) return;
+
+              // If they aren’t using a known code, don’t track secrets
+              if (!activeSecret) return;
+
+              // O is always the final portal trigger
+              if (isO) {
+                handleOClick();
+                return;
+              }
+
+              const token = tokenForIndex(index, up);
+              handleNonOClick(token);
+            };
 
             return (
               <button
                 key={index}
                 type="button"
-                className={
-                  "cw-logo-letter" + (isO ? " cw-logo-letter--portal" : "")
-                }
-                onClick={isO ? handleSecretEnter : undefined}
+                className={className}
+                onClick={onClick}
                 aria-hidden="true"
                 tabIndex={-1}
               >
@@ -82,10 +330,9 @@ function LandingPage({ onUnlock }) {
         </h1>
       </header>
 
-      {/* Access card below */}
       <main className="cw-main">
         <section className="cw-form-card">
-          <form className="cw-form" onSubmit={handleFakeSubmit}>
+          <form className="cw-form" onSubmit={handleSubmit}>
             <input
               className="cw-input"
               type="text"
