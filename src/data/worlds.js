@@ -1,122 +1,104 @@
 // src/data/worlds.js
+import { gamesSource } from "../source/gamesSource";
+import { playersSource } from "../source/playersSource";
 
-import { games } from "./games";
+function normalize(s) {
+  return String(s || "").trim().toLowerCase();
+}
 
-const gamesById = Object.fromEntries(games.map((g) => [g.id, g]));
+// If you use aliases later, you can expand this matching.
+function playerMatchesGame(player, game) {
+  const p = normalize(player.name);
+  const white = normalize(game.white);
+  const black = normalize(game.black);
 
-// Raw world definitions: just structure + which games belong, per player
-const worldDefs = [
-  {
-    id: "world1-anderssen",
-    name: "World 1 – Adolf Anderssen",
-    focusPlayer: "Adolf Anderssen",
-    description: "Romantic-era sacrificial pioneer.",
-    levels: [
-      { gameId: "game-immortal-1851" },
-      { gameId: "game-evergreen-1852" },
-      { gameId: "game-mayet-anderssen-1851" },
-      { gameId: "game-anderssen-zukertort-1869" },
-    ],
-  },
-  {
-    id: "world2-morphy",
-    name: "World 2 – Paul Morphy",
-    focusPlayer: "Paul Morphy",
-    description: "Classical attacking genius.",
-    levels: [
-      { gameId: "game-opera-1858" },
-      { gameId: "game-morphy-anderssen-1858" },
-      { gameId: "game-morphy-paulsen-1857" },
-      { gameId: "game-morphy-bird-1858" },
-    ],
-  },
-  {
-    id: "world3-lasker",
-    name: "World 3 – Emanuel Lasker",
-    focusPlayer: "Emanuel Lasker",
-    description: "Second world champion and fighting strategist.",
-    levels: [
-      { gameId: "game-lasker-bauer-1889" },
-      { gameId: "game-lasker-napier-1904" },
-      { gameId: "game-lasker-tarrasch-1914" },
-      { gameId: "game-lasker-capablanca-1914" },
-    ],
-  },
-  {
-    id: "world4-fischer",
-    name: "World 4 – Bobby Fischer",
-    focusPlayer: "Bobby Fischer",
-    description: "Modern legend of precision and deep preparation.",
-    levels: [
-      { gameId: "game-byrne-fischer-1956" },
-      { gameId: "game-fischer-spassky-1972-g6" },
-      { gameId: "game-fischer-taimanov-1971-g2" },
-      { gameId: "game-fischer-larsen-1971-g1" },
-    ],
-  },
-  {
-    id: "world5-tal",
-    name: "World 5 – Mikhail Tal",
-    focusPlayer: "Mikhail Tal",
-    description: "Modern legend of precision and deep preparation.",
-    levels: [
-      { gameId: "game-botvinnik-tal-1960-g6" },
-    ],
-  },
-  {
-    id: "world6-karpov",
-    name: "World 6 – Anatoly Karpov",
-    focusPlayer: "Anatoly Karpov",
-    description: "Ice-cold world champion and master of precision.",
-    levels: [{ gameId: "game-karpov-kasparov-1985-g16" }],
-  },
-  {
-    id: "world7-kasparov",
-    name: "World 7 – Garry Kasparov",
-    focusPlayer: "Garry Kasparov",
-    description: "Dynamic attacking machine and theoretical powerhouse.",
-    levels: [{ gameId: "game-karpov-kasparov-1985-g16" }],
-  },
-];
+  if (p && (p === white || p === black)) return true;
 
-// Build the final worlds array used by the app
-export const worlds = worldDefs.map((world) => {
-  const hydratedLevels = world.levels
-    .map(({ gameId }) => {
-      const game = gamesById[gameId];
-      if (!game || !game.show) return null;
+  const aliases = Array.isArray(player.aliases) ? player.aliases : [];
+  for (const a of aliases) {
+    const aa = normalize(a);
+    if (aa && (aa === white || aa === black)) return true;
+  }
 
-        // infer which color the focus player is in this game
-        let playerColor = "white";
-        if (game.white === world.focusPlayer) playerColor = "white";
-        else if (game.black === world.focusPlayer) playerColor = "black";
+  return false;
+}
 
+function inferPlayerColor(player, game) {
+  const p = normalize(player.name);
+  if (normalize(game.white) === p) return "white";
+  if (normalize(game.black) === p) return "black";
 
-      const year =
-        game.year ??
-        (game.date && game.date.length >= 4 ? game.date.slice(0, 4) : "");
+  // aliases support
+  const aliases = Array.isArray(player.aliases) ? player.aliases : [];
+  for (const a of aliases) {
+    const aa = normalize(a);
+    if (normalize(game.white) === aa) return "white";
+    if (normalize(game.black) === aa) return "black";
+  }
 
-      const titleBase = game.nickname || game.officialName;
-      const title = `${titleBase}${year ? ` (${year})` : ""}`;
+  // fallback (shouldn’t happen if matched)
+  return "white";
+}
 
-      const subtitleParts = [game.officialName];
-      if (game.event) subtitleParts.push(game.event);
-      const subtitle = subtitleParts.join(" – ");
+function yearFromGame(game) {
+  return (
+    game.year ??
+    (game.date && game.date.length >= 4 ? game.date.slice(0, 4) : "")
+  );
+}
 
-      return {
-        // use gameId as the level id: no duplicate strings
-        id: gameId,
-        gameId,
-        playerColor,
-        timePerMoveSeconds: game.timePerMoveSeconds,
-        description: game.description,
-        title,
-        subtitle,
-        pgn: game.pgn,
-        gameMeta: game,
-      };
-    })
-    .filter(Boolean);
+function buildLevelFromGame(player, game) {
+  const year = yearFromGame(game);
+  const titleBase = game.nickname || game.officialName || game.id;
+  const title = `${titleBase}${year ? ` (${year})` : ""}`;
 
-  return { ...world, levels: hydratedLevels };
+  const subtitleParts = [];
+  if (game.officialName) subtitleParts.push(game.officialName);
+  if (game.event) subtitleParts.push(game.event);
+  const subtitle = subtitleParts.join(" – ");
+
+  return {
+    id: game.id,     // level id
+    gameId: game.id,
+    playerColor: inferPlayerColor(player, game),
+    timePerMoveSeconds: game.timePerMoveSeconds,
+    description: game.description,
+    title,
+    subtitle,
+    pgn: game.pgn,
+    gameMeta: game,
+  };
+}
+
+// 1) sort players by worldOrder (then name), then build worlds
+const sortedPlayers = [...playersSource].sort((a, b) => {
+  const ao = a.worldOrder ?? 9999;
+  const bo = b.worldOrder ?? 9999;
+  if (ao !== bo) return ao - bo;
+  return String(a.name).localeCompare(String(b.name));
 });
+
+export const worlds = sortedPlayers
+  // Player-level show gate (undefined treated as true)
+  .filter((p) => p.show !== false)
+  .map((player) => {
+    // games that include this player
+    const playerGames = gamesSource.filter((g) => playerMatchesGame(player, g));
+
+    // gameplay-only: game.show !== false (undefined treated as true)
+    const playableGames = playerGames.filter((g) => g.show !== false);
+
+    // preserve gamesSource ordering (your era/date ordering stays intact)
+    const levels = playableGames.map((g) => buildLevelFromGame(player, g));
+
+    return {
+      id: player.id, // stable
+      name: player.worldName || `World – ${player.name}`,
+      focusPlayer: player.name,
+      description: player.description || "",
+      levels,
+      playerMeta: player,
+    };
+  })
+  // IMPORTANT: hide worlds with no levels
+  .filter((w) => (w.levels?.length ?? 0) > 0);

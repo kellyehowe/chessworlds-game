@@ -1,5 +1,4 @@
 // src/App.jsx
-
 import React, { useState } from "react";
 import LandingPage from "./LandingPage";
 import GameShell from "./GameShell";
@@ -12,11 +11,16 @@ function App() {
   const [isPrivilegedSession, setIsPrivilegedSession] = useState(false);
 
   if (mode === "game") {
-    return <GameShell />;
+    return <GameShell isPrivilegedSession={isPrivilegedSession} />;
   }
 
   if (mode === "source") {
-    return <ChessWorldsSource onBack={() => setMode("landing")} />;
+    return (
+      <ChessWorldsSource
+        onBack={() => setMode("landing")}
+        isPrivileged={isPrivilegedSession}
+      />
+    );
   }
 
   return (
