@@ -6,7 +6,6 @@ function normalize(s) {
   return String(s || "").trim().toLowerCase();
 }
 
-// If you use aliases later, you can expand this matching.
 function playerMatchesGame(player, game) {
   const p = normalize(player.name);
   const white = normalize(game.white);
@@ -28,7 +27,6 @@ function inferPlayerColor(player, game) {
   if (normalize(game.white) === p) return "white";
   if (normalize(game.black) === p) return "black";
 
-  // aliases support
   const aliases = Array.isArray(player.aliases) ? player.aliases : [];
   for (const a of aliases) {
     const aa = normalize(a);
@@ -36,7 +34,6 @@ function inferPlayerColor(player, game) {
     if (normalize(game.black) === aa) return "black";
   }
 
-  // fallback (shouldn’t happen if matched)
   return "white";
 }
 
@@ -58,7 +55,7 @@ function buildLevelFromGame(player, game) {
   const subtitle = subtitleParts.join(" – ");
 
   return {
-    id: game.id,     // level id
+    id: game.id,
     gameId: game.id,
     playerColor: inferPlayerColor(player, game),
     timePerMoveSeconds: game.timePerMoveSeconds,
@@ -70,7 +67,7 @@ function buildLevelFromGame(player, game) {
   };
 }
 
-// 1) sort players by worldOrder (then name), then build worlds
+// 1) sort players by worldOrder (then name)
 const sortedPlayers = [...playersSource].sort((a, b) => {
   const ao = a.worldOrder ?? 9999;
   const bo = b.worldOrder ?? 9999;
@@ -82,17 +79,16 @@ export const worlds = sortedPlayers
   // Player-level show gate (undefined treated as true)
   .filter((p) => p.show !== false)
   .map((player) => {
-    // games that include this player
-    const playerGames = gamesSource.filter((g) => playerMatchesGame(player, g));
-
     // gameplay-only: game.show !== false (undefined treated as true)
-    const playableGames = playerGames.filter((g) => g.show !== false);
+    // also preserves gamesSource ordering
+    const playableGames = gamesSource.filter(
+      (g) => g.show !== false && playerMatchesGame(player, g)
+    );
 
-    // preserve gamesSource ordering (your era/date ordering stays intact)
     const levels = playableGames.map((g) => buildLevelFromGame(player, g));
 
     return {
-      id: player.id, // stable
+      id: player.id,
       name: player.worldName || `World – ${player.name}`,
       focusPlayer: player.name,
       description: player.description || "",
@@ -100,5 +96,5 @@ export const worlds = sortedPlayers
       playerMeta: player,
     };
   })
-  // IMPORTANT: hide worlds with no levels
+  // hide worlds with no playable levels
   .filter((w) => (w.levels?.length ?? 0) > 0);
