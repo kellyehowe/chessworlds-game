@@ -1,5 +1,4 @@
 // src/LandingPage.jsx
-
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import "./LandingPage.css";
 import FireworksOverlay from "./components/FireworksOverlay";
@@ -41,12 +40,12 @@ function randomSafePoint() {
   return { x, y };
 }
 
-function LandingPage({ onUnlock, onWrongCode }) {
+export default function LandingPage({ onUnlock, onEnter }) {
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [isPortal, setIsPortal] = useState(false);
 
-  // KNIGHT69 progress through non-O sequence only
+  // progress through non-O sequence only
   const [seqStep, setSeqStep] = useState(0);
 
   // Click feedback (glimmer)
@@ -58,18 +57,13 @@ function LandingPage({ onUnlock, onWrongCode }) {
   const burstTimersRef = useRef([]);
 
   const normalizedCode = code.trim().toUpperCase();
-  const isKnightTyped = normalizedCode === CODE_KNIGHT;
-  const isKnight69Typed = normalizedCode === CODE_KNIGHT69;
-  const isKnightmareTyped = normalizedCode === CODE_KNIGHTMARE;
 
   const triggerGlimmer = (index) => {
     setGlimmerIndex(-1);
     requestAnimationFrame(() => {
       setGlimmerIndex(index);
       if (glimmerTimerRef.current) clearTimeout(glimmerTimerRef.current);
-      glimmerTimerRef.current = setTimeout(() => {
-        setGlimmerIndex(-1);
-      }, 520);
+      glimmerTimerRef.current = setTimeout(() => setGlimmerIndex(-1), 520);
     });
   };
 
@@ -114,30 +108,11 @@ function LandingPage({ onUnlock, onWrongCode }) {
   };
 
   useEffect(() => {
-    // Cleanup on unmount
     return () => {
       if (glimmerTimerRef.current) clearTimeout(glimmerTimerRef.current);
       clearBurstTimers();
     };
   }, []);
-
-  const handleChange = (e) => {
-    const next = e.target.value.toUpperCase();
-    setCode(next);
-    if (error) setError("");
-
-    // Reset sequence if leaving KNIGHT69
-    if (next.trim().toUpperCase() !== CODE_KNIGHT69 && seqStep !== 0) {
-      setSeqStep(0);
-    }
-  };
-
-  // ENTER always goes to Source Library (even for secret codes)
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    setError("");
-    onWrongCode?.();
-  };
 
   const title = "CHESS WORLDS";
 
@@ -180,42 +155,67 @@ function LandingPage({ onUnlock, onWrongCode }) {
     return {
       [CODE_KNIGHT]: {
         steps: [], // no non-O steps
-        unlock: { isPrivileged: false },
+        unlock: {
+          canEditSource: false,
+          canImportSource: false,
+          canResetSource: false,
+        },
       },
       [CODE_KNIGHT69]: {
-        // You observed it was: RIGHT S -> MID S -> LEFT S -> O
+        // RIGHT S -> MID S -> LEFT S -> O
         steps: ["S_RIGHT", "S_MID", "S_LEFT"],
-        unlock: { isPrivileged: true },
+        unlock: {
+          canEditSource: true,
+          canImportSource: true,
+          canResetSource: true,
+        },
       },
       [CODE_KNIGHTMARE]: {
         // Future: C -> R -> E -> D -> O
         steps: ["C", "R", "E", "D"],
-        unlock: { isPrivileged: false, nightmare: true },
+        unlock: {
+          canEditSource: false,
+          canImportSource: false,
+          canResetSource: false,
+          nightmare: true,
+        },
       },
     };
   }, []);
 
-  const activeSecret =
-    secrets[normalizedCode] || null;
-
+  const activeSecret = secrets[normalizedCode] || null;
   const activeSteps = activeSecret?.steps ?? [];
   const stepsRequired = activeSteps.length;
 
-  const isSequenceSatisfied =
-    (isKnightTyped && stepsRequired === 0) ||
-    (isKnight69Typed && seqStep === stepsRequired) ||
-    (isKnightmareTyped && seqStep === stepsRequired);
+  const isSequenceSatisfied = !!activeSecret && seqStep === stepsRequired;
+
+  const handleChange = (e) => {
+    const next = e.target.value.toUpperCase();
+    setCode(next);
+    if (error) setError("");
+
+    // If they change away from the active code, reset sequence
+    if (next.trim().toUpperCase() !== normalizedCode && seqStep !== 0) {
+      setSeqStep(0);
+    }
+    // (Even safer: reset whenever they’re not on any recognized code)
+    if (!secrets[next.trim().toUpperCase()] && seqStep !== 0) {
+      setSeqStep(0);
+    }
+  };
+
+  // ENTER always goes to Source Library
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setError("");
+    onEnter?.();
+  };
 
   const startPortalToGame = (payload) => {
     setError("");
     setIsPortal(true);
-
-    // Stop pending fireworks timers once portal begins
     clearBurstTimers();
-
-    setTimeout(() => {
-      onUnlock?.(payload);
-    }, 750);
+    setTimeout(() => onUnlock?.(payload), 750);
   };
 
   const handleOClick = () => {
@@ -227,7 +227,6 @@ function LandingPage({ onUnlock, onWrongCode }) {
   };
 
   const tokenForIndex = (index, chUpper) => {
-    // Special S tokens so you can define sequences using S_LEFT/S_RIGHT/S_MID
     if (chUpper === "S") {
       if (index === indices.S_LEFT) return "S_LEFT";
       if (index === indices.S_RIGHT) return "S_RIGHT";
@@ -245,13 +244,8 @@ function LandingPage({ onUnlock, onWrongCode }) {
   const handleNonOClick = (token) => {
     if (!activeSecret) return;
 
-    // Only process steps if the code has a defined sequence.
-    // (KNIGHT has none, so clicking letters does nothing “secret”.)
     const expected = activeSteps[seqStep];
-    if (!expected) {
-      // If there are no steps required, clicking non-O doesn’t matter.
-      return;
-    }
+    if (!expected) return;
 
     if (token === expected) {
       const nextStep = seqStep + 1;
@@ -271,7 +265,6 @@ function LandingPage({ onUnlock, onWrongCode }) {
     <div className={`cw-root ${isPortal ? "cw-root--portal" : ""}`}>
       <div className="cw-overlay" />
 
-      {/* Fireworks overlay */}
       <FireworksOverlay bursts={bursts} />
 
       <header className="cw-hero">
@@ -287,24 +280,16 @@ function LandingPage({ onUnlock, onWrongCode }) {
 
             const up = ch.toUpperCase();
             const isO = index === indices.O && up === "O";
-
-            // Only during portal transition does the O receive portal class (to zoom)
             const portalClass = isPortal && isO ? " cw-logo-letter--portal" : "";
-
-            // Any letter clicked glimmers briefly (identical behavior)
-            const glimmerClass =
-              glimmerIndex === index ? " cw-logo-letter--glimmer" : "";
-
+            const glimmerClass = glimmerIndex === index ? " cw-logo-letter--glimmer" : "";
             const className = "cw-logo-letter" + portalClass + glimmerClass;
 
             const onClick = () => {
               triggerGlimmer(index);
               if (isPortal) return;
 
-              // If they aren’t using a known code, don’t track secrets
               if (!activeSecret) return;
 
-              // O is always the final portal trigger
               if (isO) {
                 handleOClick();
                 return;
@@ -342,7 +327,6 @@ function LandingPage({ onUnlock, onWrongCode }) {
               value={code}
               onChange={handleChange}
             />
-
             <button type="submit" className="cw-button-fake">
               ENTER
             </button>
@@ -360,5 +344,3 @@ function LandingPage({ onUnlock, onWrongCode }) {
     </div>
   );
 }
-
-export default LandingPage;

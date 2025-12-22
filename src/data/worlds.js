@@ -1,6 +1,5 @@
 // src/data/worlds.js
-import { gamesSource } from "../source/gamesSource";
-import { playersSource } from "../source/playersSource";
+import { getEffectiveGames, getEffectivePlayers } from "../source/sourceStore";
 
 function normalize(s) {
   return String(s || "").trim().toLowerCase();
@@ -18,7 +17,6 @@ function playerMatchesGame(player, game) {
     const aa = normalize(a);
     if (aa && (aa === white || aa === black)) return true;
   }
-
   return false;
 }
 
@@ -33,15 +31,11 @@ function inferPlayerColor(player, game) {
     if (normalize(game.white) === aa) return "white";
     if (normalize(game.black) === aa) return "black";
   }
-
   return "white";
 }
 
 function yearFromGame(game) {
-  return (
-    game.year ??
-    (game.date && game.date.length >= 4 ? game.date.slice(0, 4) : "")
-  );
+  return game.year ?? (game.date && game.date.length >= 4 ? game.date.slice(0, 4) : "");
 }
 
 function buildLevelFromGame(player, game) {
@@ -67,34 +61,31 @@ function buildLevelFromGame(player, game) {
   };
 }
 
-// 1) sort players by worldOrder (then name)
-const sortedPlayers = [...playersSource].sort((a, b) => {
-  const ao = a.worldOrder ?? 9999;
-  const bo = b.worldOrder ?? 9999;
-  if (ao !== bo) return ao - bo;
-  return String(a.name).localeCompare(String(b.name));
-});
+export function getWorlds() {
+  const gamesSource = getEffectiveGames();
+  const playersSource = getEffectivePlayers();
 
-export const worlds = sortedPlayers
-  // Player-level show gate (undefined treated as true)
-  .filter((p) => p.show !== false)
-  .map((player) => {
-    // gameplay-only: game.show !== false (undefined treated as true)
-    // also preserves gamesSource ordering
-    const playableGames = gamesSource.filter(
-      (g) => g.show !== false && playerMatchesGame(player, g)
-    );
+  const sortedPlayers = [...playersSource].sort((a, b) => {
+    const ao = a.worldOrder ?? 9999;
+    const bo = b.worldOrder ?? 9999;
+    if (ao !== bo) return ao - bo;
+    return String(a.name).localeCompare(String(b.name));
+  });
 
-    const levels = playableGames.map((g) => buildLevelFromGame(player, g));
+  return sortedPlayers
+    .filter((p) => p.show !== false)
+    .map((player) => {
+      const playableGames = gamesSource.filter((g) => g.show !== false && playerMatchesGame(player, g));
+      const levels = playableGames.map((g) => buildLevelFromGame(player, g));
 
-    return {
-      id: player.id,
-      name: player.worldName || `World – ${player.name}`,
-      focusPlayer: player.name,
-      description: player.description || "",
-      levels,
-      playerMeta: player,
-    };
-  })
-  // hide worlds with no playable levels
-  .filter((w) => (w.levels?.length ?? 0) > 0);
+      return {
+        id: player.id,
+        name: player.worldName || `World – ${player.name}`,
+        focusPlayer: player.name,
+        description: player.description || "",
+        levels,
+        playerMeta: player,
+      };
+    })
+    .filter((w) => (w.levels?.length ?? 0) > 0);
+}

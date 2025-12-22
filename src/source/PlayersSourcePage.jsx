@@ -1,7 +1,25 @@
 // src/source/PlayersSourcePage.jsx
-import React, { useMemo, useState } from "react";
-import { playersSource as initialPlayers } from "./playersSource";
+import React, { useMemo, useRef, useState } from "react";
 import { gamesSource } from "./gamesSource";
+import {
+  exportBundleObject,
+  getEffectivePlayers,
+  importBundleObject,
+  resetBundleToDefaults,
+  setEffectivePlayers,
+} from "./sourceStore";
+
+function downloadJson(filename, obj) {
+  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
 
 function normalizeName(s) {
   return String(s || "").trim();
@@ -11,11 +29,9 @@ function nameMatchesPlayer(gameName, player) {
   const n = normalizeName(gameName).toLowerCase();
   if (!n) return false;
 
-  // primary name
   const main = normalizeName(player.name).toLowerCase();
   if (n === main) return true;
 
-  // aliases
   const aliases = Array.isArray(player.aliases) ? player.aliases : [];
   for (const a of aliases) {
     const aa = normalizeName(a).toLowerCase();
@@ -50,11 +66,15 @@ function computeStatsForPlayer(player) {
   };
 }
 
-export default function PlayersSourcePage({ onBack, isPrivileged }) {
-  const [viewMode, setViewMode] = useState("human");
-  const [players, setPlayers] = useState(initialPlayers);
+export default function PlayersSourcePage({ onBack, permissions }) {
+  const canEdit = !!permissions?.canEditSource;
+  const canImport = !!permissions?.canImportSource;
+  const canReset = !!permissions?.canResetSource;
 
-  // keep stable order by worldOrder (fallback by name)
+  const [viewMode, setViewMode] = useState("human");
+  const [players, setPlayers] = useState(() => getEffectivePlayers());
+  const fileRef = useRef(null);
+
   const orderedPlayers = useMemo(() => {
     return [...players].sort((a, b) => {
       const ao = Number.isFinite(a.worldOrder) ? a.worldOrder : 9999;
@@ -65,10 +85,7 @@ export default function PlayersSourcePage({ onBack, isPrivileged }) {
   }, [players]);
 
   const playersWithDerived = useMemo(() => {
-    return orderedPlayers.map((p) => ({
-      ...p,
-      _derived: computeStatsForPlayer(p),
-    }));
+    return orderedPlayers.map((p) => ({ ...p, _derived: computeStatsForPlayer(p) }));
   }, [orderedPlayers]);
 
   const tocItems = useMemo(
@@ -80,9 +97,51 @@ export default function PlayersSourcePage({ onBack, isPrivileged }) {
     [playersWithDerived]
   );
 
+  function saveToBrowser(nextPlayers) {
+    setEffectivePlayers(nextPlayers);
+  }
+
+  function handleDownloadBundle() {
+    const bundle = exportBundleObject();
+    downloadJson("chessworlds-source-bundle.json", bundle);
+  }
+
+  function handleImportClick() {
+    fileRef.current?.click();
+  }
+
+  async function handleImportFile(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+
+    const text = await file.text();
+    let obj;
+    try {
+      obj = JSON.parse(text);
+    } catch {
+      alert("Import failed: file is not valid JSON.");
+      return;
+    }
+
+    const res = importBundleObject(obj);
+    if (!res.ok) {
+      alert(res.error || "Import failed.");
+      return;
+    }
+
+    setPlayers(getEffectivePlayers());
+    alert("Imported! Reloading source data from this browser.");
+  }
+
+  function handleResetDefaults() {
+    if (!confirm("Reset source data to defaults for THIS browser?")) return;
+    resetBundleToDefaults();
+    setPlayers(getEffectivePlayers());
+  }
+
   const renderHuman = () => (
     <div style={{ display: "flex", gap: 24, alignItems: "flex-start" }}>
-      {/* ToC */}
       <aside style={{ width: 320, position: "sticky", top: 16 }}>
         <div style={{ opacity: 0.8, marginBottom: 8 }}>Table of Contents</div>
         <div style={{ maxHeight: "70vh", overflow: "auto", paddingRight: 8 }}>
@@ -96,23 +155,17 @@ export default function PlayersSourcePage({ onBack, isPrivileged }) {
         </div>
       </aside>
 
-      {/* Players */}
       <div style={{ flex: 1, minWidth: 0 }}>
         {playersWithDerived.map((p) => {
           const stats = p._derived;
-          const showInGameplay = p.show !== false; // undefined counts as true
+          const showInGameplay = p.show !== false;
 
           return (
             <section key={p.id} id={p.id} style={{ marginBottom: "2.5rem" }}>
               <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-                <h2 style={{ marginBottom: 6 }}>
-                  {p.worldName || p.name}
-                </h2>
-
+                <h2 style={{ marginBottom: 6 }}>{p.worldName || p.name}</h2>
                 {!showInGameplay ? (
-                  <span style={{ fontSize: 12, opacity: 0.7 }}>
-                    (hidden from gameplay)
-                  </span>
+                  <span style={{ fontSize: 12, opacity: 0.7 }}>(hidden from gameplay)</span>
                 ) : null}
               </div>
 
@@ -123,36 +176,25 @@ export default function PlayersSourcePage({ onBack, isPrivileged }) {
                 ) : null}
               </div>
 
-              {p.description ? (
-                <div style={{ opacity: 0.85, marginBottom: 10 }}>
-                  {p.description}
-                </div>
-              ) : null}
+              {p.description ? <div style={{ opacity: 0.85, marginBottom: 10 }}>{p.description}</div> : null}
 
               <div style={{ opacity: 0.8, marginBottom: 10 }}>
-                Games: <strong>{stats.total}</strong> • as White:{" "}
-                <strong>{stats.asWhite}</strong> • as Black:{" "}
+                Games: <strong>{stats.total}</strong> • as White: <strong>{stats.asWhite}</strong> • as Black:{" "}
                 <strong>{stats.asBlack}</strong>
               </div>
 
               {stats.eras.length ? (
-                <div style={{ opacity: 0.7, marginBottom: 10 }}>
-                  Eras: {stats.eras.join(", ")}
-                </div>
+                <div style={{ opacity: 0.7, marginBottom: 10 }}>Eras: {stats.eras.join(", ")}</div>
               ) : null}
 
               {p.aliases?.length ? (
-                <div style={{ opacity: 0.7, marginBottom: 10 }}>
-                  Aliases: {p.aliases.join(", ")}
-                </div>
+                <div style={{ opacity: 0.7, marginBottom: 10 }}>Aliases: {p.aliases.join(", ")}</div>
               ) : null}
 
               {p.notes ? (
                 <div style={{ opacity: 0.85, marginBottom: 12 }}>{p.notes}</div>
               ) : (
-                <div style={{ opacity: 0.5, marginBottom: 12 }}>
-                  (notes empty)
-                </div>
+                <div style={{ opacity: 0.5, marginBottom: 12 }}>(notes empty)</div>
               )}
 
               <div style={{ marginTop: 8, fontSize: 12, opacity: 0.65 }}>
@@ -168,12 +210,14 @@ export default function PlayersSourcePage({ onBack, isPrivileged }) {
   const renderStructured = () => (
     <textarea
       style={{ width: "100%", minHeight: "60vh" }}
-      readOnly={!isPrivileged}
+      readOnly={!canEdit}
       value={JSON.stringify(players, null, 2)}
       onChange={(e) => {
-        if (!isPrivileged) return;
+        if (!canEdit) return;
         try {
-          setPlayers(JSON.parse(e.target.value));
+          const next = JSON.parse(e.target.value);
+          setPlayers(next);
+          saveToBrowser(next);
         } catch {
           // ignore while typing
         }
@@ -182,18 +226,43 @@ export default function PlayersSourcePage({ onBack, isPrivileged }) {
   );
 
   const renderString = () => (
-    <textarea
-      style={{ width: "100%", minHeight: "60vh" }}
-      readOnly
-      value={JSON.stringify(players)}
-    />
+    <textarea style={{ width: "100%", minHeight: "60vh" }} readOnly value={JSON.stringify(players)} />
   );
 
   return (
     <main style={{ padding: "2rem", maxWidth: 1200, margin: "0 auto" }}>
       <button onClick={onBack}>← Back</button>
 
-      <h1 style={{ marginTop: 16 }}>Players — Source</h1>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginTop: 16 }}>
+        <h1 style={{ margin: 0 }}>Players — Source</h1>
+
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button type="button" onClick={handleDownloadBundle}>
+            Download bundle JSON
+          </button>
+
+          {canImport ? (
+            <>
+              <button type="button" onClick={handleImportClick}>
+                Import bundle JSON
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="application/json"
+                style={{ display: "none" }}
+                onChange={handleImportFile}
+              />
+            </>
+          ) : null}
+
+          {canReset ? (
+            <button type="button" onClick={handleResetDefaults} style={{ opacity: 0.85 }}>
+              Reset defaults (this browser)
+            </button>
+          ) : null}
+        </div>
+      </div>
 
       <div style={{ margin: "1rem 0" }}>
         <button onClick={() => setViewMode("human")}>Human</button>{" "}

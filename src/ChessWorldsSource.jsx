@@ -3,15 +3,21 @@ import React, { useState } from "react";
 import GamesSourcePage from "./source/GamesSourcePage";
 import PlayersSourcePage from "./source/PlayersSourcePage";
 
-export default function ChessWorldsSource({ onBack, isPrivileged }) {
+export default function ChessWorldsSource({ onExit, returnTo, permissions }) {
   const [page, setPage] = useState("home");
   // pages: home | games | players | systems | gambits | tactics
+
+  const BackToHomeButton = () => (
+    <button onClick={() => setPage("home")} style={{ marginBottom: "1rem" }}>
+      ← Back
+    </button>
+  );
 
   if (page === "games") {
     return (
       <GamesSourcePage
         onBack={() => setPage("home")}
-        isPrivileged={isPrivileged}
+        permissions={permissions}
       />
     );
   }
@@ -20,7 +26,7 @@ export default function ChessWorldsSource({ onBack, isPrivileged }) {
     return (
       <PlayersSourcePage
         onBack={() => setPage("home")}
-        isPrivileged={isPrivileged}
+        permissions={permissions}
       />
     );
   }
@@ -68,10 +74,12 @@ export default function ChessWorldsSource({ onBack, isPrivileged }) {
     </button>
   );
 
+  const exitLabel = returnTo === "game" ? "← Back to Game" : "← Back";
+
   return (
     <main style={{ padding: "2rem", maxWidth: "900px", margin: "0 auto" }}>
-      <button onClick={onBack} style={{ marginBottom: "1rem" }}>
-        ← Back
+      <button onClick={onExit} style={{ marginBottom: "1rem" }}>
+        {exitLabel}
       </button>
 
       <h1>Chess Worlds — Source Library</h1>
@@ -94,8 +102,12 @@ export default function ChessWorldsSource({ onBack, isPrivileged }) {
         <NavButton label="Players" onClick={() => setPage("players")} />
       </div>
 
-      <p style={{ marginTop: "2rem", opacity: 0.55, fontSize: 12 }}>
-        Privileged session: {String(!!isPrivileged)}
+      {/* Optional: tiny debug without revealing secrets */}
+      <p style={{ marginTop: "2rem", opacity: 0.5, fontSize: 12 }}>
+        Source permissions:{" "}
+        {permissions?.canEditSource ? "edit" : "view"}
+        {permissions?.canImportSource ? " + import" : ""}
+        {permissions?.canResetSource ? " + reset" : ""}
       </p>
     </main>
   );
