@@ -238,13 +238,13 @@ export default function PlayersSourcePage({ onBack, permissions }) {
 
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button type="button" onClick={handleDownloadBundle}>
-            Download bundle JSON
+            Download JSON
           </button>
 
           {canImport ? (
             <>
               <button type="button" onClick={handleImportClick}>
-                Import bundle JSON
+                Import JSON
               </button>
               <input
                 ref={fileRef}
@@ -258,7 +258,7 @@ export default function PlayersSourcePage({ onBack, permissions }) {
 
           {canReset ? (
             <button type="button" onClick={handleResetDefaults} style={{ opacity: 0.85 }}>
-              Reset defaults (this browser)
+              Reset Defaults
             </button>
           ) : null}
         </div>

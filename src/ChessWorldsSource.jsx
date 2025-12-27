@@ -85,8 +85,7 @@ export default function ChessWorldsSource({ onExit, returnTo, permissions }) {
       <h1>Chess Worlds — Source Library</h1>
 
       <p style={{ opacity: 0.85 }}>
-        Canonical source data for Chess Worlds. This is human-readable and can also
-        be exported as JSON.
+        Incomplete and Under Construction (don't trust it just yet!)
       </p>
 
       <h2 style={{ marginTop: "2rem" }}>Game content</h2>
@@ -102,13 +101,14 @@ export default function ChessWorldsSource({ onExit, returnTo, permissions }) {
         <NavButton label="Players" onClick={() => setPage("players")} />
       </div>
 
-      {/* Optional: tiny debug without revealing secrets */}
+      {/* Optional: tiny debug without revealing secrets
       <p style={{ marginTop: "2rem", opacity: 0.5, fontSize: 12 }}>
         Source permissions:{" "}
         {permissions?.canEditSource ? "edit" : "view"}
         {permissions?.canImportSource ? " + import" : ""}
         {permissions?.canResetSource ? " + reset" : ""}
-      </p>
+      </p> */}
+      
     </main>
   );
 }

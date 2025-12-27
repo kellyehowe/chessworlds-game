@@ -3,6 +3,10 @@
 import React, { useState, useRef, useEffect } from "react";
 import { API_BASE_URL } from "../core/apiConfig";
 
+const MAX_FILES = 5;
+const MAX_TOTAL_BYTES = 8 * 1024 * 1024; // 8 MB total (matches server)
+
+
 
 // ---- Client-side image compression helper ----
 async function compressImage(file, maxWidth = 1280, maxHeight = 1280, quality = 0.7) {
