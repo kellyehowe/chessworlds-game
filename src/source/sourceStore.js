@@ -1,9 +1,29 @@
 // src/source/sourceStore.js
-import { gamesSource as defaultGamesSource } from "./gamesSource";
-import { playersSource as defaultPlayersSource } from "./playersSource";
+// import { gamesSource as defaultGamesSource } from "./gamesSource";
+// import { playersSource as defaultPlayersSource } from "./playersSource";
+
+import defaultBundle from "./defaultSourceBundle.json";
 
 const STORAGE_KEY = "cw_source_bundle_v1";
 const SCHEMA_VERSION = 1;
+
+let listeners = new Set();
+
+function notify() {
+  for (const fn of listeners) {
+    try {
+      fn();
+    } catch (e) {
+      console.error("sourceStore listener error", e);
+    }
+  }
+}
+
+// Call this anywhere you want UI to refresh when source changes
+export function subscribeSourceChanges(fn) {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+}
 
 function hasWindow() {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
@@ -17,12 +37,26 @@ function safeParse(json) {
   }
 }
 
+function deepClone(x) {
+  // avoids accidentally mutating your imported "defaults" arrays
+  if (typeof structuredClone === "function") return structuredClone(x);
+  return JSON.parse(JSON.stringify(x));
+}
+
+// function makeDefaultBundle() {
+//   return {
+//     schemaVersion: SCHEMA_VERSION,
+//     exportedAt: new Date().toISOString(),
+//     gamesSource: deepClone(defaultGamesSource),
+//     playersSource: deepClone(defaultPlayersSource),
+//   };
+// }
 function makeDefaultBundle() {
   return {
     schemaVersion: SCHEMA_VERSION,
     exportedAt: new Date().toISOString(),
-    gamesSource: defaultGamesSource,
-    playersSource: defaultPlayersSource,
+    gamesSource: deepClone(defaultBundle.gamesSource || []),
+    playersSource: deepClone(defaultBundle.playersSource || []),
   };
 }
 
@@ -48,18 +82,22 @@ export function loadBundle() {
 
 export function saveBundle(bundle) {
   if (!hasWindow()) return;
+
   const toSave = {
     schemaVersion: SCHEMA_VERSION,
     exportedAt: new Date().toISOString(),
-    gamesSource: Array.isArray(bundle.gamesSource) ? bundle.gamesSource : defaultGamesSource,
-    playersSource: Array.isArray(bundle.playersSource) ? bundle.playersSource : defaultPlayersSource,
+    gamesSource: Array.isArray(bundle.gamesSource) ? deepClone(bundle.gamesSource) : deepClone(defaultGamesSource),
+    playersSource: Array.isArray(bundle.playersSource) ? deepClone(bundle.playersSource) : deepClone(defaultPlayersSource),
   };
+
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+  notify();
 }
 
 export function resetBundleToDefaults() {
   if (!hasWindow()) return;
   window.localStorage.removeItem(STORAGE_KEY);
+  notify();
 }
 
 export function getEffectiveGames() {
@@ -87,17 +125,12 @@ export function exportBundleObject() {
 }
 
 export function importBundleObject(obj) {
-  // Accept either a full bundle OR raw arrays (for convenience)
-  let bundle = obj;
-
   if (Array.isArray(obj)) {
-    // ambiguous; reject
     return { ok: false, error: "Import failed: expected an object, got an array." };
   }
 
-  // If user imports {gamesSource:[...], playersSource:[...]} without schemaVersion, accept.
-  const games = bundle?.gamesSource;
-  const players = bundle?.playersSource;
+  const games = obj?.gamesSource;
+  const players = obj?.playersSource;
 
   if (!Array.isArray(games) || !Array.isArray(players)) {
     return { ok: false, error: "Import failed: file must include gamesSource[] and playersSource[] arrays." };

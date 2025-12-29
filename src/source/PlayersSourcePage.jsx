@@ -1,25 +1,11 @@
 // src/source/PlayersSourcePage.jsx
-import React, { useMemo, useRef, useState } from "react";
-import { gamesSource } from "./gamesSource";
+import React, { useMemo, useState } from "react";
 import {
-  exportBundleObject,
+  getEffectiveGames,
   getEffectivePlayers,
-  importBundleObject,
-  resetBundleToDefaults,
   setEffectivePlayers,
 } from "./sourceStore";
-
-function downloadJson(filename, obj) {
-  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
+import SourceToolbar from "./SourceToolbar";
 
 function normalizeName(s) {
   return String(s || "").trim();
@@ -40,13 +26,13 @@ function nameMatchesPlayer(gameName, player) {
   return false;
 }
 
-function computeStatsForPlayer(player) {
+function computeStatsForPlayer(player, gamesList) {
   let total = 0;
   let asWhite = 0;
   let asBlack = 0;
   const eras = new Set();
 
-  for (const g of gamesSource) {
+  for (const g of gamesList) {
     if (nameMatchesPlayer(g.white, player)) {
       total += 1;
       asWhite += 1;
@@ -73,7 +59,6 @@ export default function PlayersSourcePage({ onBack, permissions }) {
 
   const [viewMode, setViewMode] = useState("human");
   const [players, setPlayers] = useState(() => getEffectivePlayers());
-  const fileRef = useRef(null);
 
   const orderedPlayers = useMemo(() => {
     return [...players].sort((a, b) => {
@@ -85,7 +70,8 @@ export default function PlayersSourcePage({ onBack, permissions }) {
   }, [players]);
 
   const playersWithDerived = useMemo(() => {
-    return orderedPlayers.map((p) => ({ ...p, _derived: computeStatsForPlayer(p) }));
+    const gamesList = getEffectiveGames(); // IMPORTANT: reflects imports/beta edits
+    return orderedPlayers.map((p) => ({ ...p, _derived: computeStatsForPlayer(p, gamesList) }));
   }, [orderedPlayers]);
 
   const tocItems = useMemo(
@@ -101,42 +87,7 @@ export default function PlayersSourcePage({ onBack, permissions }) {
     setEffectivePlayers(nextPlayers);
   }
 
-  function handleDownloadBundle() {
-    const bundle = exportBundleObject();
-    downloadJson("chessworlds-source-bundle.json", bundle);
-  }
-
-  function handleImportClick() {
-    fileRef.current?.click();
-  }
-
-  async function handleImportFile(e) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-
-    const text = await file.text();
-    let obj;
-    try {
-      obj = JSON.parse(text);
-    } catch {
-      alert("Import failed: file is not valid JSON.");
-      return;
-    }
-
-    const res = importBundleObject(obj);
-    if (!res.ok) {
-      alert(res.error || "Import failed.");
-      return;
-    }
-
-    setPlayers(getEffectivePlayers());
-    alert("Imported! Reloading source data from this browser.");
-  }
-
-  function handleResetDefaults() {
-    if (!confirm("Reset source data to defaults for THIS browser?")) return;
-    resetBundleToDefaults();
+  function reloadFromStore() {
     setPlayers(getEffectivePlayers());
   }
 
@@ -236,32 +187,7 @@ export default function PlayersSourcePage({ onBack, permissions }) {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginTop: 16 }}>
         <h1 style={{ margin: 0 }}>Players — Source</h1>
 
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button type="button" onClick={handleDownloadBundle}>
-            Download JSON
-          </button>
-
-          {canImport ? (
-            <>
-              <button type="button" onClick={handleImportClick}>
-                Import JSON
-              </button>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="application/json"
-                style={{ display: "none" }}
-                onChange={handleImportFile}
-              />
-            </>
-          ) : null}
-
-          {canReset ? (
-            <button type="button" onClick={handleResetDefaults} style={{ opacity: 0.85 }}>
-              Reset Defaults
-            </button>
-          ) : null}
-        </div>
+        <SourceToolbar canImport={canImport} canReset={canReset} onReload={reloadFromStore} />
       </div>
 
       <div style={{ margin: "1rem 0" }}>

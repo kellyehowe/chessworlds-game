@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "exportedAt": "2025-12-27T00:13:34.403Z",
+  "exportedAt": "2025-12-28T03:56:42.500Z",
   "gamesSource": [
     {
       "id": "game-immortal-1851",
@@ -33,22 +33,6 @@
       "timePerMoveSeconds": 14,
       "description": "Brilliant queen and double-bishop sacrifice.",
       "pgn": "\n1.e4 e5 2.Nf3 Nc6 3.Bc4 Bc5 4.b4 Bxb4 5.c3 Ba5\n6.d4 exd4 7.O-O d3 8.Qb3 Qf6 9.e5 Qg6 10.Re1 Nge7\n11.Ba3 b5 12.Qxb5 Rb8 13.Qa4 Bb6 14.Nbd2 Bb7 15.Ne4\nQf5 16.Bxd3 Qh5 17.Nf6+ gxf6 18.exf6 Rg8 19.Rad1\nQxf3 20.Rxe7+ Nxe7 21.Qxd7+ Kxd7 22.Bf5+ Kc6\n23.Bd7# 1-0\n"
-    },
-    {
-      "id": "game-mayet-anderssen-1851",
-      "era": "romantic",
-      "year": 1851,
-      "date": "1851-??-??",
-      "white": "Carl Mayet",
-      "black": "Adolf Anderssen",
-      "event": "Berlin 1851",
-      "nickname": null,
-      "officialName": "Mayet vs Anderssen",
-      "result": "0-1",
-      "show": true,
-      "timePerMoveSeconds": 12,
-      "description": "A sharp miniature where Anderssen punishes inaccuracies as Black.",
-      "pgn": "\n1.e4 e5 2.Nf3 Nc6 3.Bb5 Bc5 4.c3 Nf6 5.Bxc6 dxc6 6.O-O Bg4\n7.h3 h5 8.hxg4 hxg4 9.Nxe5 g3 10.d4 Nxe4 11.Qg4 Bxd4 12.Qxe4 0-1\n"
     },
     {
       "id": "game-anderssen-zukertort-1869",
@@ -119,16 +103,16 @@
       "era": "romantic",
       "year": 1858,
       "date": "1858-??-??",
-      "white": "Paul Morphy",
-      "black": "Henry Bird",
+      "white": "Henry Bird",
+      "black": "Paul Morphy",
       "event": "London 1858",
-      "nickname": null,
-      "officialName": "Morphy vs Bird",
+      "nickname": "A Bird in the Hand",
+      "officialName": "Bird vs Morphy, 1858",
       "result": "0-1",
       "show": true,
       "timePerMoveSeconds": 12,
-      "description": "A rapid attack on f7 leading to a spectacular finish.",
-      "pgn": "\n1.e4 e5 2.Nf3 Nc6 3.Bc4 Bc5 4.c3 Nf6 5.d4 exd4 6.e5\nd5 7.exf6 dxc4 8.fxg7 Rg8 9.O-O Be6 10.Bg5 Qd5\n11.Bf6 d3 12.Nbd2 Qf5 13.Ne4 Be7 14.Nd4 Qxe4\n15.Nxc6 Qxc6 16.Bxe7 Kxe7 17.Qh5 Rxg7 18.Qh4+ Kf8\n19.f3 Qc5+ 20.Kh1 Qg5 21.Qf2 Bd5 22.Rae1 Re8\n23.Qc5+ Re7 24.Rf2 d2 25.Rd1 Bc6 26.Qd4 Re8\n27.Rfxd2 Kg8 28.h4 Qg3 29.Qf2 Qf4 30.Rd4 Qf5\n31.Rxc4 Qb5 32.Rg4 Re2 33.Rd8+ Re8 34.Qg3+ Kf8\n35.Rg8+ Ke7 36.Qxc7+ Kf6 37.Qf4+ Qf5 38.Qd6+ Re6\n39.Qd4+ Qe5 40.Qg4 Ke7 41.Qb4+ Qd6 42.Qxd6+ Rxd6\n43.Rxd6 Kxd6 44.Rg7 Bd5 45.a3 h5 46.Rg5 f6 47.Rxh5\nb5 48.Rf5 Ke6 49.g4 Bc4 50.h5 Bd3 51.Rf4 Kf7\n52.g5 f5 53.Rd4 Bc4 54.Rd7+ Kg8 55.h6 f4 56.g6 Kf8\n57.h7 Bg8 58.hxg8=Q+ Kxg8 59.Rf7 b4 60.axb4 1-0\n"
+      "description": "A fierce attack, sacrificing a rook and queen in a dazzling display",
+      "pgn": "\n1.e4 e5 2.Nf3 d6 3.d4 f5 4.Nc3 fxe4 5.Nxe4 d5 6.Ng3 e4 7.Ne5\nNf6 8.Bg5 Bd6 9.Nh5 O-O 10.Qd2 Qe8 11.g4 Nxg4 12.Nxg4 Qxh5\n13.Ne5 Nc6 14.Be2 Qh3 15.Nxc6 bxc6 16.Be3 Rb8 17.O-O-O Rxf2\n18.Bxf2 Qa3 19.c3 Qxa2 20.b4 Qa1+ 21.Kc2 Qa4+ 22.Kb2 Bxb4\n23.cxb4 Rxb4+ 24.Qxb4 Qxb4+ 25.Kc2 e3 26.Bxe3 Bf5+ 27.Rd3 Qc4+\n28.Kd2 Qa2+ 29.Kd1 Qb1+ 0-1\n"
     },
     {
       "id": "game-lasker-bauer-1889",
@@ -211,22 +195,6 @@
       "pgn": "\n1.Nf3 Nf6 2.c4 g6 3.Nc3 Bg7 4.d4 O-O 5.Bf4 d5 6.Qb3 dxc4\n7.Qxc4 c6 8.e4 Nbd7 9.Rd1 Nb6 10.Qc5 Bg4 11.Bg5 Na4\n12.Qa3 Nxc3 13.bxc3 Nxe4 14.Bxe7 Qb6 15.Bc4 Nxc3\n16.Bc5 Re8+ 17.Kf1 Be6 18.Bxb6 Bxc4+ 19.Kg1 Ne2+\n20.Kf1 Nxd4+ 21.Kg1 Ne2+ 22.Kf1 Nc3+ 23.Kg1 axb6\n24.Qb4 Ra4 25.Qxb6 Nxd1 26.h3 Rxa2 27.Kh2 Nxf2\n28.Re1 Rxe1 29.Qd8+ Bf8 30.Nxe1 Bd5 31.Nf3 b5\n32.Nf3 Ne4 33.Ne5 Kg7 34.Nd7 Bd6+ 35.Qxd6 Nxd6\n36.Ne5 Rxg2+ 37.Kh1 Re2+ 38.Kg1 Rxe5 39.h4 b4\n40.Kf2 b3 41.Kg3 b2 42.h5 b1=Q 43.hxg6 Qxg6+\n44.Kh4 Rh5# 0-1\n"
     },
     {
-      "id": "game-botvinnik-tal-1960-g6",
-      "era": "modern",
-      "year": 1960,
-      "date": "1960-03-26",
-      "white": "Mikhail Botvinnik",
-      "black": "Mikhail Tal",
-      "event": "Botvinnik - Tal World Championship Match",
-      "nickname": "TBD",
-      "officialName": "Botvinnik - Tal World Championship Match (1960)",
-      "result": "0-1",
-      "show": true,
-      "timePerMoveSeconds": 16,
-      "description": "Find something later and stick it here.",
-      "pgn": "\n1.c4 Nf6 2.Nf3 g6 3.g3 Bg7 4.Bg2 O-O 5.d4 d6 6.Nc3 Nbd7 7.O-O\ne5 8.e4 c6 9.h3 Qb6 10.d5 cxd5 11.cxd5 Nc5 12.Ne1 Bd7 13.Nd3\nNxd3 14.Qxd3 Rfc8 15.Rb1 Nh5 16.Be3 Qb4 17.Qe2 Rc4 18.Rfc1\nRac8 19.Kh2 f5 20.exf5 Bxf5 21.Ra1 Nf4 22.gxf4 exf4 23.Bd2\nQxb2 24.Rab1 f3 25.Rxb2 fxe2 26.Rb3 Rd4 27.Be1 Be5+ 28.Kg1 Bf4\n29.Nxe2 Rxc1 30.Nxd4 Rxe1+ 31.Bf1 Be4 32.Ne2 Be5 33.f4 Bf6\n34.Rxb7 Bxd5 35.Rc7 Bxa2 36.Rxa7 Bc4 37.Ra8+ Kf7 38.Ra7+ Ke6\n39.Ra3 d5 40.Kf2 Bh4+ 41.Kg2 Kd6 42.Ng3 Bxg3 43.Bxc4 dxc4\n44.Kxg3 Kd5 45.Ra7 c3 46.Rc7 Kd4 47.Rd7+ 0-1\n"
-    },
-    {
       "id": "game-fischer-spassky-1972-g6",
       "era": "modern",
       "year": 1972,
@@ -273,22 +241,6 @@
       "timePerMoveSeconds": 16,
       "description": "A crushing start to Fischer’s 6–0 Candidates victory over Larsen.",
       "pgn": "\n1.c4 e5 2.Nc3 Nf6 3.Nf3 Nc6 4.g3 d5 5.cxd5 Nxd5 6.Bg2 Nb6\n7.O-O Be7 8.d3 O-O 9.Be3 Re8 10.Rc1 Bf8 11.a3 Nd4\n12.b4 a5 13.b5 Bxa3 14.Ra1 Bb4 15.Na2 Bf8 16.Nc3 Bb4\n17.Bd2 Bd7 18.Nxd4 exd4 19.Na2 Bxd2 20.Qxd2 Bxb5\n21.Bxb7 Ra7 22.Bg2 c5 23.Rfb1 Bd7 24.Qb2 Na4 25.Qc2 Qf6\n26.Rb7 Rxb7 27.Bxb7 Rb8 28.Bg2 Rb2 29.Qd1 Qe7 30.Nc1 Nc3\n31.Qe1 a4 32.e3 Qf6 33.exd4 cxd4 34.Be4 Nxe4 35.dxe4 Qf3\n36.Ra2 Bh3 37.Qf1 Bxf1 38.Kxf1 Qxf2# 0-1\n"
-    },
-    {
-      "id": "game-karpov-kasparov-1985-g16",
-      "era": "modern",
-      "year": 1985,
-      "date": "1985-??-??",
-      "white": "Anatoly Karpov",
-      "black": "Garry Kasparov",
-      "event": "World Championship 1985, Game 16",
-      "nickname": "The Octopus or Kasparov's Immortal Game",
-      "officialName": "Karpov - Kasparov World Championship Match (1985)",
-      "result": "0-1",
-      "show": true,
-      "timePerMoveSeconds": 20,
-      "description": "World Championship clash often called Kasparov’s immortal game (hidden until PGN is finalized).",
-      "pgn": "\n1.e4 c5 2.Nf3 e6 3.d4 cxd4 4.Nxd4 Nc6 5.Nb5 d6 6.c4 Nf6 7.N1c3\na6 8.Na3 d5 9.cxd5 exd5 10.exd5 Nb4 11.Be2 Bc5 12.O-O O-O\n13.Bf3 Bf5 14.Bg5 Re8 15.Qd2 b5 16.Rad1 Nd3 17.Nab1 h6 18.Bh4\nb4 19.Na4 Bd6 20.Bg3 Rc8 21.b3 g5 22.Bxd6 Qxd6 23.g3 Nd7\n24.Bg2 Qf6 25.a3 a5 26.axb4 axb4 27.Qa2 Bg6 28.d6 g4 29.Qd2\nKg7 30.f3 Qxd6 31.fxg4 Qd4+ 32.Kh1 Nf6 33.Rf4 Ne4 34.Qxd3 Nf2+\n35.Rxf2 Bxd3 36.Rfd2 Qe3 37.Rxd3 Rc1 38.Nb2 Qf2 39.Nd2 Rxd1+\n40.Nxd1 Re1+ 0-1\n"
     }
   ],
   "playersSource": [

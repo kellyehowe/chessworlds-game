@@ -1,5 +1,7 @@
 // src/GameShell.jsx
+
 import React, { useEffect, useMemo, useState } from "react";
+import { subscribeSourceChanges } from "./source/sourceStore";
 import { getWorlds } from "./data/worlds";
 import ChessLevel from "./ChessLevel";
 import FeedbackDialog from "./components/FeedbackDialog";
@@ -14,7 +16,15 @@ function firstLevelIdForWorld(world) {
 }
 
 export default function GameShell({ onOpenSource }) {
-  const worlds = useMemo(() => getWorlds(), []);
+
+  const [sourceRev, setSourceRev] = useState(0);
+
+  useEffect(() => {
+    return subscribeSourceChanges(() => setSourceRev((x) => x + 1));
+  }, []);
+
+  const worlds = useMemo(() => getWorlds(), [sourceRev]);
+
 
   if (!worlds.length) {
     return (

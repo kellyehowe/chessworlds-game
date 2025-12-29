@@ -1,24 +1,7 @@
 // src/source/GamesSourcePage.jsx
-import React, { useMemo, useRef, useState } from "react";
-import {
-  exportBundleObject,
-  getEffectiveGames,
-  importBundleObject,
-  resetBundleToDefaults,
-  setEffectiveGames,
-} from "./sourceStore";
-
-function downloadJson(filename, obj) {
-  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
+import React, { useMemo, useState } from "react";
+import { getEffectiveGames, setEffectiveGames } from "./sourceStore";
+import SourceToolbar from "./SourceToolbar";
 
 export default function GamesSourcePage({ onBack, permissions }) {
   const canEdit = !!permissions?.canEditSource;
@@ -27,7 +10,6 @@ export default function GamesSourcePage({ onBack, permissions }) {
 
   const [viewMode, setViewMode] = useState("human");
   const [games, setGames] = useState(() => getEffectiveGames());
-  const fileRef = useRef(null);
 
   const visibleGames = games;
 
@@ -47,43 +29,7 @@ export default function GamesSourcePage({ onBack, permissions }) {
     setEffectiveGames(nextGames);
   }
 
-  function handleDownloadBundle() {
-    const bundle = exportBundleObject();
-    downloadJson("chessworlds-source-bundle.json", bundle);
-  }
-
-  function handleImportClick() {
-    fileRef.current?.click();
-  }
-
-  async function handleImportFile(e) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-
-    const text = await file.text();
-    let obj;
-    try {
-      obj = JSON.parse(text);
-    } catch {
-      alert("Import failed: file is not valid JSON.");
-      return;
-    }
-
-    const res = importBundleObject(obj);
-    if (!res.ok) {
-      alert(res.error || "Import failed.");
-      return;
-    }
-
-    const nextGames = getEffectiveGames();
-    setGames(nextGames);
-    alert("Imported! Reloading source data from this browser.");
-  }
-
-  function handleResetDefaults() {
-    if (!confirm("Reset source data to defaults for THIS browser?")) return;
-    resetBundleToDefaults();
+  function reloadFromStore() {
     setGames(getEffectiveGames());
   }
 
@@ -161,32 +107,7 @@ export default function GamesSourcePage({ onBack, permissions }) {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginTop: 16 }}>
         <h1 style={{ margin: 0 }}>Games — Source</h1>
 
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button type="button" onClick={handleDownloadBundle}>
-            Download JSON
-          </button>
-
-          {canImport ? (
-            <>
-              <button type="button" onClick={handleImportClick}>
-                Import JSON
-              </button>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="application/json"
-                style={{ display: "none" }}
-                onChange={handleImportFile}
-              />
-            </>
-          ) : null}
-
-          {canReset ? (
-            <button type="button" onClick={handleResetDefaults} style={{ opacity: 0.85 }}>
-              Reset Defaults
-            </button>
-          ) : null}
-        </div>
+        <SourceToolbar canImport={canImport} canReset={canReset} onReload={reloadFromStore} />
       </div>
 
       <div style={{ margin: "1rem 0" }}>
