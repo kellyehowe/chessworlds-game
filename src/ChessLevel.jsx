@@ -105,7 +105,7 @@ export default function ChessLevel({ level, world }) {
   useEffect(() => {
     if (!level) return;
 
-    // Show intro only if we have a portrait
+    // Show intro overlay only if portrait exists
     setIntroVisible(Boolean(portraitSrc));
 
     const runner = new LevelRunner(level);
@@ -125,7 +125,7 @@ export default function ChessLevel({ level, world }) {
     clearSelection();
     clearGuide();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [level?.id, world?.id, portraitSrc]);
+  }, [level?.id, portraitSrc]);
 
   // Timer
   useEffect(() => {
@@ -171,10 +171,7 @@ export default function ChessLevel({ level, world }) {
 
     if (!result.ok) {
       stopTimer();
-      setWrongDialog({
-        visible: true,
-        expectedMove: result.expected || null,
-      });
+      setWrongDialog({ visible: true, expectedMove: result.expected || null });
       clearSelection();
       return { ok: false };
     }
@@ -189,12 +186,7 @@ export default function ChessLevel({ level, world }) {
       const tl = timeLimit || 1;
       const score = Math.max(0, Math.round((1000 * (tl - totalSeconds)) / tl));
 
-      setSuccessDialog({
-        visible: true,
-        time: totalSeconds,
-        score,
-      });
-
+      setSuccessDialog({ visible: true, time: totalSeconds, score });
       stopTimer();
     }
 
@@ -351,11 +343,7 @@ export default function ChessLevel({ level, world }) {
 
     setFileOverlay(null);
     setRankOverlay(null);
-    setMoveOverlay({
-      text: sanText,
-      colIndex: fileIndexTarget,
-      rankIndex: rankIndexTarget,
-    });
+    setMoveOverlay({ text: sanText, colIndex: fileIndexTarget, rankIndex: rankIndexTarget });
 
     setFinalMessage(`The right move was ${sanText}!`);
     await sleep(1300);
@@ -466,11 +454,7 @@ export default function ChessLevel({ level, world }) {
 
         {/* Portrait overlay: covers the board; dismisses itself via onDone */}
         {introVisible && (
-          <PixelPortraitIntro
-            src={portraitSrc}
-            durationMs={2400}
-            onDone={() => setIntroVisible(false)}
-          />
+          <PixelPortraitIntro src={portraitSrc} durationMs={2400} onDone={() => setIntroVisible(false)} />
         )}
 
         {fileOverlay && fileOverlayStyle && <div style={fileOverlayStyle}>{fileOverlay.text}</div>}
