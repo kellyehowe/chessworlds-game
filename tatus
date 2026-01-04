@@ -1,0 +1,596 @@
+[1mdiff --git a/src/ChessLevel.jsx b/src/ChessLevel.jsx[m
+[1mindex 7033e19..599209f 100644[m
+[1m--- a/src/ChessLevel.jsx[m
+[1m+++ b/src/ChessLevel.jsx[m
+[36m@@ -1,9 +1,9 @@[m
+ // src/ChessLevel.jsx[m
+[31m-[m
+[31m-import React, { useEffect, useRef, useState } from "react";[m
+[32m+[m[32mimport React, { useEffect, useRef, useState, useMemo } from "react";[m
+ import { Chess } from "chess.js";[m
+ import { Chessboard } from "react-chessboard";[m
+ import LevelRunner from "./core/LevelRunner.js";[m
+[32m+[m[32mimport PixelPortraitIntro from "./components/PixelPortraitIntro.jsx";[m
+ [m
+ // --- board geometry + helpers ---[m
+ const BOARD_SIZE = 520;[m
+[36m@@ -17,10 +17,8 @@[m [mconst OVERLAY_BASE = {[m
+   position: "absolute",[m
+   transform: "translate(-50%, -50%)",[m
+   pointerEvents: "none",[m
+[31m-  fontFamily:[m
+[31m-    "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",[m
+[32m+[m[32m  fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",[m
+   fontWeight: 900,[m
+[31m-  // no textTransform here so SAN like "Nf3" looks official[m
+ };[m
+ [m
+ // Icy teal origin square (where you start the move)[m
+[36m@@ -39,45 +37,52 @@[m [mconst DEST_HIGHLIGHT = {[m
+ [m
+ // Icy file/rank sweep for Show Me[m
+ const FLASH_HIGHLIGHT = {[m
+[31m-  background: "rgba(191,219,254,0.28)", // pale icy blue[m
+[32m+[m[32m  background: "rgba(191,219,254,0.28)",[m
+   boxShadow: "inset 0 0 0 3px rgba(129,199,255,0.95)",[m
+ };[m
+ [m
+[31m-export default function ChessLevel({ level }) {[m
+[32m+[m[32mfunction slugifyPortraitKey(s) {[m
+[32m+[m[32m  return String(s || "")[m
+[32m+[m[32m    .trim()[m
+[32m+[m[32m    .toLowerCase()[m
+[32m+[m[32m    .replace(/['".]/g, "")[m
+[32m+[m[32m    .replace(/[^a-z0-9]+/g, "-")[m
+[32m+[m[32m    .replace(/-+/g, "-")[m
+[32m+[m[32m    .replace(/^-|-$/g, "");[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32mexport default function ChessLevel({ level, world }) {[m
+   const [fen, setFen] = useState(new Chess().fen());[m
+   const [elapsed, setElapsed] = useState(0);[m
+   const [runStartTime, setRunStartTime] = useState(null);[m
+   const [timeLimit, setTimeLimit] = useState(0);[m
+ [m
+[31m-  const [wrongDialog, setWrongDialog] = useState({[m
+[31m-    visible: false,[m
+[31m-    expectedMove: null,[m
+[31m-  });[m
+[31m-[m
+[31m-  const [successDialog, setSuccessDialog] = useState({[m
+[31m-    visible: false,[m
+[31m-    time: 0,[m
+[31m-    score: 0,[m
+[31m-  });[m
+[32m+[m[32m  const [wrongDialog, setWrongDialog] = useState({ visible: false, expectedMove: null });[m
+[32m+[m[32m  const [successDialog, setSuccessDialog] = useState({ visible: false, time: 0, score: 0 });[m
+ [m
+   const [hintSquares, setHintSquares] = useState({});[m
+[31m-[m
+[31m-  const [selection, setSelection] = useState({[m
+[31m-    from: null,[m
+[31m-    legalTargets: [],[m
+[31m-  });[m
+[32m+[m[32m  const [selection, setSelection] = useState({ from: null, legalTargets: [] });[m
+   const [selectionSquares, setSelectionSquares] = useState({});[m
+[31m-[m
+   const [dragSquares, setDragSquares] = useState({});[m
+ [m
+   const [guideSquares, setGuideSquares] = useState({});[m
+[31m-  const [fileOverlay, setFileOverlay] = useState(null); // { text, colIndex, rankIndex }[m
+[31m-  const [rankOverlay, setRankOverlay] = useState(null); // { text, colIndex, rankIndex }[m
+[31m-  const [moveOverlay, setMoveOverlay] = useState(null); // { text, colIndex, rankIndex }[m
+[32m+[m[32m  const [fileOverlay, setFileOverlay] = useState(null);[m
+[32m+[m[32m  const [rankOverlay, setRankOverlay] = useState(null);[m
+[32m+[m[32m  const [moveOverlay, setMoveOverlay] = useState(null);[m
+   const [finalMessage, setFinalMessage] = useState(null);[m
+ [m
+   const levelRunnerRef = useRef(null);[m
+ [m
+[32m+[m[32m  // --- Portrait intro control ---[m
+[32m+[m[32m  const [introVisible, setIntroVisible] = useState(false);[m
+[32m+[m
+[32m+[m[32m  const portraitSrc = useMemo(() => {[m
+[32m+[m[32m    const rawKey = world?.playerMeta?.id || world?.focusPlayer || world?.name || "";[m
+[32m+[m[32m    const key = slugifyPortraitKey(rawKey);[m
+[32m+[m[32m    if (!key) return "";[m
+[32m+[m[32m    return `/portraits/${key}.png`;[m
+[32m+[m[32m  }, [world]);[m
+[32m+[m
+   const clearDrag = () => setDragSquares({});[m
+ [m
+   const clearSelection = () => {[m
+[36m@@ -100,6 +105,9 @@[m [mexport default function ChessLevel({ level }) {[m
+   useEffect(() => {[m
+     if (!level) return;[m
+ [m
+[32m+[m[32m    // Show intro only if we have a portrait[m
+[32m+[m[32m    setIntroVisible(Boolean(portraitSrc));[m
+[32m+[m
+     const runner = new LevelRunner(level);[m
+     levelRunnerRef.current = runner;[m
+ [m
+[36m@@ -117,7 +125,7 @@[m [mexport default function ChessLevel({ level }) {[m
+     clearSelection();[m
+     clearGuide();[m
+     // eslint-disable-next-line react-hooks/exhaustive-deps[m
+[31m-  }, [level]);[m
+[32m+[m[32m  }, [level?.id, world?.id, portraitSrc]);[m
+ [m
+   // Timer[m
+   useEffect(() => {[m
+[36m@@ -144,26 +152,20 @@[m [mexport default function ChessLevel({ level }) {[m
+     clearGuide();[m
+   };[m
+ [m
+[31m-  const handleTryAgain = () => {[m
+[31m-    restartLevel();[m
+[31m-  };[m
+[31m-[m
+[31m-  const handleSuccessClose = () => {[m
+[31m-    setSuccessDialog({ visible: false, time: 0, score: 0 });[m
+[31m-  };[m
+[32m+[m[32m  const handleTryAgain = () => restartLevel();[m
+[32m+[m[32m  const handleSuccessClose = () => setSuccessDialog({ visible: false, time: 0, score: 0 });[m
+ [m
+   // Core move application used by click + drag[m
+   const attemptMove = (sourceSquare, targetSquare) => {[m
+     const runner = levelRunnerRef.current;[m
+     if (!runner) return { ok: false };[m
+ [m
+[31m-    if (wrongDialog.visible || successDialog.visible) {[m
+[31m-      return { ok: false };[m
+[31m-    }[m
+[32m+[m[32m    // Block interactions during intro[m
+[32m+[m[32m    if (introVisible) return { ok: false };[m
+ [m
+[31m-    if (runStartTime === null) {[m
+[31m-      setRunStartTime(Date.now());[m
+[31m-    }[m
+[32m+[m[32m    if (wrongDialog.visible || successDialog.visible) return { ok: false };[m
+[32m+[m
+[32m+[m[32m    if (runStartTime === null) setRunStartTime(Date.now());[m
+ [m
+     const result = runner.handlePlayerMove(sourceSquare, targetSquare);[m
+ [m
+[36m@@ -185,10 +187,7 @@[m [mexport default function ChessLevel({ level }) {[m
+     if (result.completed) {[m
+       const totalSeconds = (Date.now() - runStartTime) / 1000;[m
+       const tl = timeLimit || 1;[m
+[31m-      const score = Math.max([m
+[31m-        0,[m
+[31m-        Math.round((1000 * (tl - totalSeconds)) / tl)[m
+[31m-      );[m
+[32m+[m[32m      const score = Math.max(0, Math.round((1000 * (tl - totalSeconds)) / tl));[m
+ [m
+       setSuccessDialog({[m
+         visible: true,[m
+[36m@@ -212,6 +211,7 @@[m [mexport default function ChessLevel({ level }) {[m
+   const handleSquareClick = ({ square }) => {[m
+     const runner = levelRunnerRef.current;[m
+     if (!runner || wrongDialog.visible || successDialog.visible) return;[m
+[32m+[m[32m    if (introVisible) return;[m
+ [m
+     const chess = runner.chess;[m
+     const playerColor = runner.playerColor;[m
+[36m@@ -236,15 +236,10 @@[m [mexport default function ChessLevel({ level }) {[m
+       return;[m
+     }[m
+ [m
+[31m-    const legalMoves = chess[m
+[31m-      .moves({ square, verbose: true })[m
+[31m-      .filter((m) => m.color === playerColor);[m
+[31m-[m
+[32m+[m[32m    const legalMoves = chess.moves({ square, verbose: true }).filter((m) => m.color === playerColor);[m
+     const targets = legalMoves.map((m) => m.to);[m
+ [m
+[31m-    const sqStyles = {[m
+[31m-      [square]: ORIGIN_HIGHLIGHT,[m
+[31m-    };[m
+[32m+[m[32m    const sqStyles = { [square]: ORIGIN_HIGHLIGHT };[m
+     targets.forEach((t) => {[m
+       sqStyles[t] = DEST_HIGHLIGHT;[m
+     });[m
+[36m@@ -257,6 +252,7 @@[m [mexport default function ChessLevel({ level }) {[m
+   const handlePieceDragBegin = ({ sourceSquare }) => {[m
+     const runner = levelRunnerRef.current;[m
+     if (!runner || wrongDialog.visible || successDialog.visible) return;[m
+[32m+[m[32m    if (introVisible) return;[m
+ [m
+     const chess = runner.chess;[m
+     const playerColor = runner.playerColor;[m
+[36m@@ -267,13 +263,9 @@[m [mexport default function ChessLevel({ level }) {[m
+       return;[m
+     }[m
+ [m
+[31m-    const legalMoves = chess[m
+[31m-      .moves({ square: sourceSquare, verbose: true })[m
+[31m-      .filter((m) => m.color === playerColor);[m
+[32m+[m[32m    const legalMoves = chess.moves({ square: sourceSquare, verbose: true }).filter((m) => m.color === playerColor);[m
+ [m
+[31m-    const styles = {[m
+[31m-      [sourceSquare]: ORIGIN_HIGHLIGHT,[m
+[31m-    };[m
+[32m+[m[32m    const styles = { [sourceSquare]: ORIGIN_HIGHLIGHT };[m
+     legalMoves.forEach((m) => {[m
+       styles[m.to] = DEST_HIGHLIGHT;[m
+     });[m
+[36m@@ -281,9 +273,7 @@[m [mexport default function ChessLevel({ level }) {[m
+     setDragSquares(styles);[m
+   };[m
+ [m
+[31m-  const handlePieceDragEnd = () => {[m
+[31m-    clearDrag();[m
+[31m-  };[m
+[32m+[m[32m  const handlePieceDragEnd = () => clearDrag();[m
+ [m
+   // --- SHOW ME animation (files/ranks + move text) ---[m
+   const runShowMeAnimation = async (runner, expected) => {[m
+[36m@@ -293,7 +283,6 @@[m [mexport default function ChessLevel({ level }) {[m
+     clearSelection();[m
+     clearGuide();[m
+ [m
+[31m-    // Base hint on from/to[m
+     setHintSquares({[m
+       [expected.from]: ORIGIN_HIGHLIGHT,[m
+       [expected.to]: DEST_HIGHLIGHT,[m
+[36m@@ -313,10 +302,8 @@[m [mexport default function ChessLevel({ level }) {[m
+     const fileIndexTarget = FILES.indexOf(file);[m
+     const rankIndexTarget = RANKS.indexOf(rank);[m
+ [m
+[31m-    // SAN text (e.g. "Nf6+" -> "Nf6")[m
+     const sanText = (expected.san || toSquare).replace(/[+#]$/g, "");[m
+ [m
+[31m-    // 1) Flash files a..target[m
+     for (let i = 0; i <= fileIndexTarget; i++) {[m
+       const f = FILES[i];[m
+       const squares = RANKS.map((r) => f + r);[m
+[36m@@ -326,11 +313,7 @@[m [mexport default function ChessLevel({ level }) {[m
+       }, {});[m
+       setGuideSquares(sqStyles);[m
+ [m
+[31m-      setFileOverlay({[m
+[31m-        text: f, // lowercase for file letter[m
+[31m-        colIndex: i,[m
+[31m-        rankIndex: rankIndexTarget,[m
+[31m-      });[m
+[32m+[m[32m      setFileOverlay({ text: f, colIndex: i, rankIndex: rankIndexTarget });[m
+ [m
+       await sleep(260);[m
+ [m
+[36m@@ -343,7 +326,6 @@[m [mexport default function ChessLevel({ level }) {[m
+ [m
+     setGuideSquares({});[m
+ [m
+[31m-    // 2) Flash ranks 1..target along target file[m
+     for (let i = 0; i <= rankIndexTarget; i++) {[m
+       const rnk = RANKS[i];[m
+       const squares = FILES.map((f) => f + rnk);[m
+[36m@@ -353,11 +335,7 @@[m [mexport default function ChessLevel({ level }) {[m
+       }, {});[m
+       setGuideSquares(sqStyles);[m
+ [m
+[31m-      setRankOverlay({[m
+[31m-        text: rnk,[m
+[31m-        colIndex: fileIndexTarget,[m
+[31m-        rankIndex: i,[m
+[31m-      });[m
+[32m+[m[32m      setRankOverlay({ text: rnk, colIndex: fileIndexTarget, rankIndex: i });[m
+ [m
+       await sleep(260);[m
+ [m
+[36m@@ -369,11 +347,8 @@[m [mexport default function ChessLevel({ level }) {[m
+     }[m
+ [m
+     setGuideSquares({});[m
+[31m-[m
+[31m-    // Let file + rank sit together briefly[m
+     await sleep(200);[m
+ [m
+[31m-    // 3) Replace with final move text (e.g. "Nf6")[m
+     setFileOverlay(null);[m
+     setRankOverlay(null);[m
+     setMoveOverlay({[m
+[36m@@ -404,10 +379,8 @@[m [mexport default function ChessLevel({ level }) {[m
+ [m
+   if (!level) return null;[m
+ [m
+[31m-  const boardOrientation =[m
+[31m-    level.playerColor === "black" ? "black" : "white";[m
+[32m+[m[32m  const boardOrientation = level.playerColor === "black" ? "black" : "white";[m
+ [m
+[31m-  // Merge all highlight layers[m
+   const mergedSquareStyles = {[m
+     ...selectionSquares,[m
+     ...dragSquares,[m
+[36m@@ -415,7 +388,6 @@[m [mexport default function ChessLevel({ level }) {[m
+     ...hintSquares,[m
+   };[m
+ [m
+[31m-  // logical (fileIndex, rankIndex) -> pixel position, respecting orientation[m
+   const squareToPixel = (fileIndex, rankIndex) => {[m
+     let colBoard, rowBoard;[m
+ [m
+[36m@@ -423,7 +395,6 @@[m [mexport default function ChessLevel({ level }) {[m
+       colBoard = fileIndex;[m
+       rowBoard = 7 - rankIndex;[m
+     } else {[m
+[31m-      // black at bottom: h8 bottom-left[m
+       colBoard = 7 - fileIndex;[m
+       rowBoard = rankIndex;[m
+     }[m
+[36m@@ -434,19 +405,15 @@[m [mexport default function ChessLevel({ level }) {[m
+     };[m
+   };[m
+ [m
+[31m-  // --- Overlay styles (files, ranks, move) with icy theme ---[m
+   let fileOverlayStyle = null;[m
+   if (fileOverlay) {[m
+[31m-    const { left, top } = squareToPixel([m
+[31m-      fileOverlay.colIndex,[m
+[31m-      fileOverlay.rankIndex[m
+[31m-    );[m
+[32m+[m[32m    const { left, top } = squareToPixel(fileOverlay.colIndex, fileOverlay.rankIndex);[m
+     fileOverlayStyle = {[m
+       ...OVERLAY_BASE,[m
+       left,[m
+       top,[m
+       fontSize: "3rem",[m
+[31m-      color: "#e0f2fe", // icy silver-blue[m
+[32m+[m[32m      color: "#e0f2fe",[m
+       textShadow:[m
+         "0 0 6px rgba(148,163,184,0.9), 0 0 14px rgba(129,199,255,0.9), 0 0 26px rgba(56,189,248,0.8)",[m
+     };[m
+[36m@@ -454,16 +421,13 @@[m [mexport default function ChessLevel({ level }) {[m
+ [m
+   let rankOverlayStyle = null;[m
+   if (rankOverlay) {[m
+[31m-    const { left, top } = squareToPixel([m
+[31m-      rankOverlay.colIndex,[m
+[31m-      rankOverlay.rankIndex[m
+[31m-    );[m
+[32m+[m[32m    const { left, top } = squareToPixel(rankOverlay.colIndex, rankOverlay.rankIndex);[m
+     rankOverlayStyle = {[m
+       ...OVERLAY_BASE,[m
+       left,[m
+       top,[m
+       fontSize: "3rem",[m
+[31m-      color: "#f1f5f9", // slightly brighter silver[m
+[32m+[m[32m      color: "#f1f5f9",[m
+       textShadow:[m
+         "0 0 6px rgba(148,163,184,0.9), 0 0 16px rgba(129,199,255,0.9), 0 0 28px rgba(59,130,246,0.85)",[m
+     };[m
+[36m@@ -471,16 +435,13 @@[m [mexport default function ChessLevel({ level }) {[m
+ [m
+   let moveOverlayStyle = null;[m
+   if (moveOverlay) {[m
+[31m-    const { left, top } = squareToPixel([m
+[31m-      moveOverlay.colIndex,[m
+[31m-      moveOverlay.rankIndex[m
+[31m-    );[m
+[32m+[m[32m    const { left, top } = squareToPixel(moveOverlay.colIndex, moveOverlay.rankIndex);[m
+     moveOverlayStyle = {[m
+       ...OVERLAY_BASE,[m
+       left,[m
+       top,[m
+       fontSize: "3.4rem",[m
+[31m-      color: "#ffffff", // chrome-white[m
+[32m+[m[32m      color: "#ffffff",[m
+       textShadow:[m
+         "0 0 10px rgba(191,219,254,1), 0 0 22px rgba(129,199,255,0.95), 0 0 40px rgba(56,189,248,0.9)",[m
+     };[m
+[36m@@ -492,35 +453,30 @@[m [mexport default function ChessLevel({ level }) {[m
+     position: fen,[m
+     boardOrientation,[m
+     squareStyles: mergedSquareStyles,[m
+[31m-    onPieceDrop: ({ sourceSquare, targetSquare }) =>[m
+[31m-      handlePieceDrop(sourceSquare, targetSquare),[m
+[32m+[m[32m    onPieceDrop: ({ sourceSquare, targetSquare }) => handlePieceDrop(sourceSquare, targetSquare),[m
+     onSquareClick: ({ square }) => handleSquareClick({ square }),[m
+[31m-    onPieceDragBegin: ({ sourceSquare }) =>[m
+[31m-      handlePieceDragBegin({ sourceSquare }),[m
+[32m+[m[32m    onPieceDragBegin: ({ sourceSquare }) => handlePieceDragBegin({ sourceSquare }),[m
+     onPieceDragEnd: () => handlePieceDragEnd(),[m
+   };[m
+ [m
+   return ([m
+[31m-    <div[m
+[31m-      style={{[m
+[31m-        position: "relative",[m
+[31m-        paddingBottom: "2rem",[m
+[31m-      }}[m
+[31m-    >[m
+[31m-      {/* Board + overlays + dialogs */}[m
+[32m+[m[32m    <div style={{ position: "relative", paddingBottom: "2rem" }}>[m
+       <div style={{ maxWidth: BOARD_SIZE, position: "relative" }}>[m
+         <Chessboard options={chessboardOptions} />[m
+[31m-        {fileOverlay && fileOverlayStyle && ([m
+[31m-          <div style={fileOverlayStyle}>{fileOverlay.text}</div>[m
+[31m-        )}[m
+[31m-        {rankOverlay && rankOverlayStyle && ([m
+[31m-          <div style={rankOverlayStyle}>{rankOverlay.text}</div>[m
+[31m-        )}[m
+[31m-        {moveOverlay && moveOverlayStyle && ([m
+[31m-          <div style={moveOverlayStyle}>{moveOverlay.text}</div>[m
+[32m+[m
+[32m+[m[32m        {/* Portrait overlay: covers the board; dismisses itself via onDone */}[m
+[32m+[m[32m        {introVisible && ([m
+[32m+[m[32m          <PixelPortraitIntro[m
+[32m+[m[32m            src={portraitSrc}[m
+[32m+[m[32m            durationMs={2400}[m
+[32m+[m[32m            onDone={() => setIntroVisible(false)}[m
+[32m+[m[32m          />[m
+         )}[m
+ [m
+[31m-        {/* Wrong-move dialog */}[m
+[32m+[m[32m        {fileOverlay && fileOverlayStyle && <div style={fileOverlayStyle}>{fileOverlay.text}</div>}[m
+[32m+[m[32m        {rankOverlay && rankOverlayStyle && <div style={rankOverlayStyle}>{rankOverlay.text}</div>}[m
+[32m+[m[32m        {moveOverlay && moveOverlayStyle && <div style={moveOverlayStyle}>{moveOverlay.text}</div>}[m
+[32m+[m
+         {wrongDialog.visible && ([m
+           <div className="wrong-move-backdrop">[m
+             <div className="wrong-move-dialog">[m
+[36m@@ -536,7 +492,6 @@[m [mexport default function ChessLevel({ level }) {[m
+           </div>[m
+         )}[m
+ [m
+[31m-        {/* Success dialog (same style/position) */}[m
+         {successDialog.visible && ([m
+           <div className="wrong-move-backdrop">[m
+             <div className="wrong-move-dialog">[m
+[36m@@ -556,16 +511,13 @@[m [mexport default function ChessLevel({ level }) {[m
+         )}[m
+       </div>[m
+ [m
+[31m-      {/* Timer */}[m
+       <p style={{ marginTop: "0.75rem" }}>[m
+         <strong>Elapsed:</strong> {elapsed}s&nbsp;&nbsp;[m
+         <strong>Time limit:</strong> {timeLimit}s[m
+       </p>[m
+ [m
+[31m-      {/* Restart button */}[m
+       <button onClick={restartLevel}>Restart level</button>[m
+ [m
+[31m-      {/* Final "right move" message */}[m
+       {finalMessage && ([m
+         <p[m
+           style={{[m
+[1mdiff --git a/src/GameShell.jsx b/src/GameShell.jsx[m
+[1mindex 9f065c4..dfa38e0 100644[m
+[1m--- a/src/GameShell.jsx[m
+[1m+++ b/src/GameShell.jsx[m
+[36m@@ -1,5 +1,4 @@[m
+ // src/GameShell.jsx[m
+[31m-[m
+ import React, { useEffect, useMemo, useState } from "react";[m
+ import { subscribeSourceChanges } from "./source/sourceStore";[m
+ import { getWorlds } from "./data/worlds";[m
+[36m@@ -16,7 +15,6 @@[m [mfunction firstLevelIdForWorld(world) {[m
+ }[m
+ [m
+ export default function GameShell({ onOpenSource }) {[m
+[31m-[m
+   const [sourceRev, setSourceRev] = useState(0);[m
+ [m
+   useEffect(() => {[m
+[36m@@ -25,46 +23,42 @@[m [mexport default function GameShell({ onOpenSource }) {[m
+ [m
+   const worlds = useMemo(() => getWorlds(), [sourceRev]);[m
+ [m
+[32m+[m[32m  // ✅ Hooks must always run in the same order (no early returns before hooks)[m
+[32m+[m[32m  const [selectedWorldId, setSelectedWorldId] = useState("");[m
+[32m+[m[32m  const [selectedLevelId, setSelectedLevelId] = useState("");[m
+[32m+[m[32m  const [cheatInput, setCheatInput] = useState("");[m
+[32m+[m[32m  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);[m
+ [m
+[31m-  if (!worlds.length) {[m
+[31m-    return ([m
+[31m-      <div className="app-root">[m
+[31m-        <main className="app-main" style={{ padding: 20 }}>[m
+[31m-          <h1 className="game-title">Chess Worlds</h1>[m
+[31m-          <p style={{ opacity: 0.8 }}>[m
+[31m-            No playable worlds yet. (Either no games match any shown players,[m
+[31m-            or all matching games are show:false.)[m
+[31m-          </p>[m
+[31m-[m
+[31m-          <button type="button" onClick={onOpenSource} style={{ marginTop: 12 }}>[m
+[31m-            Open Source Library[m
+[31m-          </button>[m
+[31m-        </main>[m
+[31m-      </div>[m
+[31m-    );[m
+[31m-  }[m
+[32m+[m[32m  // Keep selectedWorldId valid as worlds change[m
+[32m+[m[32m  useEffect(() => {[m
+[32m+[m[32m    if (!worlds.length) return;[m
+ [m
+[31m-  const [selectedWorldId, setSelectedWorldId] = useState(firstWorldId(worlds));[m
+[32m+[m[32m    const exists = worlds.some((w) => w.id === selectedWorldId);[m
+[32m+[m[32m    if (!selectedWorldId || !exists) {[m
+[32m+[m[32m      setSelectedWorldId(firstWorldId(worlds));[m
+[32m+[m[32m    }[m
+[32m+[m[32m  }, [worlds, selectedWorldId]);[m
+ [m
+   const selectedWorld = useMemo(() => {[m
+[31m-    return worlds.find((w) => w.id === selectedWorldId) || worlds[0];[m
+[32m+[m[32m    if (!worlds.length) return null;[m
+[32m+[m[32m    return worlds.find((w) => w.id === selectedWorldId) || worlds[0] || null;[m
+   }, [worlds, selectedWorldId]);[m
+ [m
+[31m-  const [selectedLevelId, setSelectedLevelId] = useState(firstLevelIdForWorld(selectedWorld));[m
+[31m-[m
+[32m+[m[32m  // Keep selectedLevelId valid as selectedWorld changes[m
+   useEffect(() => {[m
+[32m+[m[32m    if (!selectedWorld) return;[m
+[32m+[m
+     const hasLevel = selectedWorld.levels?.some((lvl) => lvl.id === selectedLevelId);[m
+[31m-    if (!hasLevel) setSelectedLevelId(firstLevelIdForWorld(selectedWorld));[m
+[32m+[m[32m    if (!selectedLevelId || !hasLevel) {[m
+[32m+[m[32m      setSelectedLevelId(firstLevelIdForWorld(selectedWorld));[m
+[32m+[m[32m    }[m
+   }, [selectedWorld, selectedLevelId]);[m
+ [m
+   const selectedLevel = useMemo(() => {[m
+[31m-    if (!selectedWorld.levels?.length) return null;[m
+[32m+[m[32m    if (!selectedWorld?.levels?.length) return null;[m
+     return selectedWorld.levels.find((lvl) => lvl.id === selectedLevelId) || selectedWorld.levels[0];[m
+   }, [selectedWorld, selectedLevelId]);[m
+ [m
+[31m-  const [cheatInput, setCheatInput] = useState("");[m
+[31m-  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);[m
+[31m-[m
+   function handleWorldSelect(world) {[m
+     setSelectedWorldId(world.id);[m
+     setSelectedLevelId(world.levels?.[0]?.id ?? "");[m
+[36m@@ -78,6 +72,24 @@[m [mexport default function GameShell({ onOpenSource }) {[m
+     setCheatInput("");[m
+   }[m
+ [m
+[32m+[m[32m  // ✅ Now conditional UI happens inside the return (hooks already ran)[m
+[32m+[m[32m  if (!worlds.length) {[m
+[32m+[m[32m    return ([m
+[32m+[m[32m      <div className="app-root">[m
+[32m+[m[32m        <main className="app-main" style={{ padding: 20 }}>[m
+[32m+[m[32m          <h1 className="game-title">Chess Worlds</h1>[m
+[32m+[m[32m          <p style={{ opacity: 0.8 }}>[m
+[32m+[m[32m            No playable worlds yet. (Either no games match any shown players, or all matching games are show:false.)[m
+[32m+[m[32m          </p>[m
+[32m+[m
+[32m+[m[32m          <button type="button" onClick={onOpenSource} style={{ marginTop: 12 }}>[m
+[32m+[m[32m            Open Source Library[m
+[32m+[m[32m          </button>[m
+[32m+[m[32m        </main>[m
+[32m+[m[32m      </div>[m
+[32m+[m[32m    );[m
+[32m+[m[32m  }[m
+[32m+[m
+   return ([m
+     <div className="app-root">[m
+       <main className="app-main">[m
+[36m@@ -111,7 +123,7 @@[m [mexport default function GameShell({ onOpenSource }) {[m
+           <section style={{ marginTop: "1.5rem" }}>[m
+             <h2>Levels</h2>[m
+ [m
+[31m-            {!selectedWorld.levels?.length ? ([m
+[32m+[m[32m            {!selectedWorld?.levels?.length ? ([m
+               <div style={{ opacity: 0.8, padding: "0.5rem 0" }}>No playable levels for this world.</div>[m
+             ) : ([m
+               <div className="list">[m
+[36m@@ -149,15 +161,13 @@[m [mexport default function GameShell({ onOpenSource }) {[m
+           <h1 className="game-title">Chess Worlds</h1>[m
+ [m
+           {!selectedLevel ? ([m
+[31m-            <div style={{ opacity: 0.85 }}>[m
+[31m-              Select a world with playable levels (or set some games to show:true).[m
+[31m-            </div>[m
+[32m+[m[32m            <div style={{ opacity: 0.85 }}>Select a world with playable levels (or set some games to show:true).</div>[m
+           ) : ([m
+             <>[m
+               <h2 className="level-title">{selectedLevel.title}</h2>[m
+               <p className="level-subtitle">{selectedLevel.subtitle}</p>[m
+ [m
+[31m-              <ChessLevel level={selectedLevel} />[m
+[32m+[m[32m              <ChessLevel level={selectedLevel} world={selectedWorld} />[m
+ [m
+               <div className="level-info-card">[m
+                 <p>[m

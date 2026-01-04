@@ -1,5 +1,4 @@
 // src/GameShell.jsx
-
 import React, { useEffect, useMemo, useState } from "react";
 import { subscribeSourceChanges } from "./source/sourceStore";
 import { getWorlds } from "./data/worlds";
@@ -16,7 +15,6 @@ function firstLevelIdForWorld(world) {
 }
 
 export default function GameShell({ onOpenSource }) {
-
   const [sourceRev, setSourceRev] = useState(0);
 
   useEffect(() => {
@@ -25,45 +23,41 @@ export default function GameShell({ onOpenSource }) {
 
   const worlds = useMemo(() => getWorlds(), [sourceRev]);
 
+  // ✅ Hooks must always run in the same order (no early returns before hooks)
+  const [selectedWorldId, setSelectedWorldId] = useState("");
+  const [selectedLevelId, setSelectedLevelId] = useState("");
+  const [cheatInput, setCheatInput] = useState("");
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
 
-  if (!worlds.length) {
-    return (
-      <div className="app-root">
-        <main className="app-main" style={{ padding: 20 }}>
-          <h1 className="game-title">Chess Worlds</h1>
-          <p style={{ opacity: 0.8 }}>
-            No playable worlds yet. (Either no games match any shown players,
-            or all matching games are show:false.)
-          </p>
+  // Keep selectedWorldId valid as worlds change
+  useEffect(() => {
+    if (!worlds.length) return;
 
-          <button type="button" onClick={onOpenSource} style={{ marginTop: 12 }}>
-            Open Source Library
-          </button>
-        </main>
-      </div>
-    );
-  }
-
-  const [selectedWorldId, setSelectedWorldId] = useState(firstWorldId(worlds));
-
-  const selectedWorld = useMemo(() => {
-    return worlds.find((w) => w.id === selectedWorldId) || worlds[0];
+    const exists = worlds.some((w) => w.id === selectedWorldId);
+    if (!selectedWorldId || !exists) {
+      setSelectedWorldId(firstWorldId(worlds));
+    }
   }, [worlds, selectedWorldId]);
 
-  const [selectedLevelId, setSelectedLevelId] = useState(firstLevelIdForWorld(selectedWorld));
+  const selectedWorld = useMemo(() => {
+    if (!worlds.length) return null;
+    return worlds.find((w) => w.id === selectedWorldId) || worlds[0] || null;
+  }, [worlds, selectedWorldId]);
 
+  // Keep selectedLevelId valid as selectedWorld changes
   useEffect(() => {
+    if (!selectedWorld) return;
+
     const hasLevel = selectedWorld.levels?.some((lvl) => lvl.id === selectedLevelId);
-    if (!hasLevel) setSelectedLevelId(firstLevelIdForWorld(selectedWorld));
+    if (!selectedLevelId || !hasLevel) {
+      setSelectedLevelId(firstLevelIdForWorld(selectedWorld));
+    }
   }, [selectedWorld, selectedLevelId]);
 
   const selectedLevel = useMemo(() => {
-    if (!selectedWorld.levels?.length) return null;
+    if (!selectedWorld?.levels?.length) return null;
     return selectedWorld.levels.find((lvl) => lvl.id === selectedLevelId) || selectedWorld.levels[0];
   }, [selectedWorld, selectedLevelId]);
-
-  const [cheatInput, setCheatInput] = useState("");
-  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
 
   function handleWorldSelect(world) {
     setSelectedWorldId(world.id);
@@ -76,6 +70,24 @@ export default function GameShell({ onOpenSource }) {
     if (!code) return;
     console.log("Cheat code entered:", code.toUpperCase());
     setCheatInput("");
+  }
+
+  // ✅ Now conditional UI happens inside the return (hooks already ran)
+  if (!worlds.length) {
+    return (
+      <div className="app-root">
+        <main className="app-main" style={{ padding: 20 }}>
+          <h1 className="game-title">Chess Worlds</h1>
+          <p style={{ opacity: 0.8 }}>
+            No playable worlds yet. (Either no games match any shown players, or all matching games are show:false.)
+          </p>
+
+          <button type="button" onClick={onOpenSource} style={{ marginTop: 12 }}>
+            Open Source Library
+          </button>
+        </main>
+      </div>
+    );
   }
 
   return (
@@ -111,7 +123,7 @@ export default function GameShell({ onOpenSource }) {
           <section style={{ marginTop: "1.5rem" }}>
             <h2>Levels</h2>
 
-            {!selectedWorld.levels?.length ? (
+            {!selectedWorld?.levels?.length ? (
               <div style={{ opacity: 0.8, padding: "0.5rem 0" }}>No playable levels for this world.</div>
             ) : (
               <div className="list">
@@ -149,15 +161,13 @@ export default function GameShell({ onOpenSource }) {
           <h1 className="game-title">Chess Worlds</h1>
 
           {!selectedLevel ? (
-            <div style={{ opacity: 0.85 }}>
-              Select a world with playable levels (or set some games to show:true).
-            </div>
+            <div style={{ opacity: 0.85 }}>Select a world with playable levels (or set some games to show:true).</div>
           ) : (
             <>
               <h2 className="level-title">{selectedLevel.title}</h2>
               <p className="level-subtitle">{selectedLevel.subtitle}</p>
 
-              <ChessLevel level={selectedLevel} />
+              <ChessLevel level={selectedLevel} world={selectedWorld} />
 
               <div className="level-info-card">
                 <p>
